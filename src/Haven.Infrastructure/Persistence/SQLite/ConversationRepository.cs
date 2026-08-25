@@ -347,6 +347,25 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
+    /// Deletes one context entry owned by the conversation and reports whether a row was removed.
+    /// Rows whose kind is CompactSummary are protected continuity summaries and refuse deletion by returning
+    /// false without touching the row; unknown ids likewise return false.
+    /// </summary>
+    public async Task<bool> DeleteContextEntryAsync(Guid conversationId, Guid entryId, CancellationToken cancellationToken)
+    {
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM conversation_context
+            WHERE conversation_id=$conversationId AND id=$id AND kind<>$protectedKind;
+            """;
+        command.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+        command.Parameters.AddWithValue("$id", entryId.ToString());
+        command.Parameters.AddWithValue("$protectedKind", (int)ContextEntryKind.CompactSummary);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <summary>
     /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken)

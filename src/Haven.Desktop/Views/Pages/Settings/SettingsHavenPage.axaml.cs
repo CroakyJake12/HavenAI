@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Events;
@@ -75,6 +75,8 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.LoadPrivacyPreferences(_privacy.Current);
         WireEvents();
         InitializeConnections();
+        InitializeGovernance();
+        InitializeUpdates();
         _ = RefreshModelsAsync();
         _ = RefreshDefaultTabsAsync();
         _ = RefreshExtensionsAsync();
@@ -179,7 +181,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_disposed) return;
         try
         {
-            _route.SetStatus("Loading installed models…");
+            _route.SetStatus("Loading installed modelsâ€¦");
             _models = await _ollama.GetModelsAsync(_lifetime.Token);
             _route.SetModels(_models.Select(model => model.Name).ToArray(), _preferences.DefaultModel);
             _route.SetStatus(_models.Count == 0 ? "No local models are installed." : $"{_models.Count} local model{(_models.Count == 1 ? string.Empty : "s")} available.");
@@ -248,7 +250,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         var name = AccentColourCatalog.Name(AccentColourCatalog.Colours[index]);
         _preferences.ApplyAccentOverride(true, name);
         for (var position = 0; position < _route.AccentSwatchButtons.Count; position++)
-            _route.AccentSwatchButtons[position].Content = position == index ? "✓" : string.Empty;
+            _route.AccentSwatchButtons[position].Content = position == index ? "âœ“" : string.Empty;
         SyncAccentSelectionLabel();
         _route.SetStatus($"Accent colour changed to {name}.");
         _bus.Fire("Settings.Personalisation.AccentChanged");
@@ -433,8 +435,8 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         {
             _extensionSources = await _extensionManager.GetSourcesAsync(_lifetime.Token);
             _installedExtensions = await _extensionManager.GetInstalledAsync(_lifetime.Token);
-            _route.SetExtensionSources(_extensionSources.Select(source => $"{source.DisplayName} · {source.UpdateMode}").ToArray(), _route.ExtensionSourceSelect.SelectedIndex);
-            _route.SetInstalledExtensions(_installedExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} · {package.Manifest.Version}").ToArray(), _route.InstalledExtensionSelect.SelectedIndex);
+            _route.SetExtensionSources(_extensionSources.Select(source => $"{source.DisplayName} Â· {source.UpdateMode}").ToArray(), _route.ExtensionSourceSelect.SelectedIndex);
+            _route.SetInstalledExtensions(_installedExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} Â· {package.Manifest.DisplayName} Â· {package.Manifest.Version}").ToArray(), _route.InstalledExtensionSelect.SelectedIndex);
             ShowSelectedInstalledExtension();
             _route.ExtensionStatusText.Content = $"{_extensionSources.Count} source(s), {_installedExtensions.Count} installed package(s).";
         }
@@ -473,11 +475,11 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_extensionManager is null || Selected(_extensionSources, _route.ExtensionSourceSelect.SelectedIndex) is not { } source) return;
         try
         {
-            _route.ExtensionStatusText.Content = "Refreshing repository manifest…";
+            _route.ExtensionStatusText.Content = "Refreshing repository manifestâ€¦";
             _availableExtensions = await _extensionManager.RefreshAsync(source.Id, _lifetime.Token);
             _permissionReviewPackageId = null;
             _route.ExtensionInstallButton.Content = "Review permissions";
-            _route.SetAvailableExtensions(_availableExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} · {package.Manifest.Version} · {package.State}").ToArray(), 0);
+            _route.SetAvailableExtensions(_availableExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} Â· {package.Manifest.DisplayName} Â· {package.Manifest.Version} Â· {package.State}").ToArray(), 0);
             ShowSelectedAvailableExtension();
             await RefreshExtensionsAsync();
             _route.ExtensionStatusText.Content = $"Discovered {_availableExtensions.Count} validated package(s) from {source.DisplayName}.";
@@ -503,7 +505,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             return;
         }
         var manifest = package.Manifest;
-        _route.AvailableExtensionDetails.Content = $"{PackageTypeLabel(manifest.PackageType)} · {manifest.DisplayName} {manifest.Version}\n{manifest.Description}\nAuthor: {manifest.Author} · Publisher: {manifest.Publisher}\nHaven compatibility: {manifest.HavenVersionRange}\nSource package: {manifest.PackagePath}\nRequested permissions: {PermissionLabel(manifest.RequestedPermissions)}\nCapabilities: {manifest.Capabilities.Count} · Skills: {manifest.Skills.Count}\nState: {package.State}";
+        _route.AvailableExtensionDetails.Content = $"{PackageTypeLabel(manifest.PackageType)} Â· {manifest.DisplayName} {manifest.Version}\n{manifest.Description}\nAuthor: {manifest.Author} Â· Publisher: {manifest.Publisher}\nHaven compatibility: {manifest.HavenVersionRange}\nSource package: {manifest.PackagePath}\nRequested permissions: {PermissionLabel(manifest.RequestedPermissions)}\nCapabilities: {manifest.Capabilities.Count} Â· Skills: {manifest.Skills.Count}\nState: {package.State}";
         if (_permissionReviewPackageId != manifest.PackageId) _route.ExtensionInstallButton.Content = "Review permissions";
     }
 
@@ -519,7 +521,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         }
         try
         {
-            _route.ExtensionStatusText.Content = "Installing package atomically…";
+            _route.ExtensionStatusText.Content = "Installing package atomicallyâ€¦";
             await _extensionManager.InstallAsync(package, package.Manifest.RequestedPermissions, _lifetime.Token);
             _permissionReviewPackageId = null;
             _route.ExtensionInstallButton.Content = "Review permissions";
@@ -537,7 +539,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             _route.InstalledExtensionDetails.Content = "No installed packages.";
             return;
         }
-        _route.InstalledExtensionDetails.Content = $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} {package.Manifest.Version}\n{package.Manifest.Description}\nPublisher: {package.Manifest.Publisher}\nGranted permissions: {PermissionLabel(package.GrantedPermissions)}\nEnabled: {package.IsEnabled} · State: {package.State}\nSource ID: {package.SourceId}\nLocal modifications: {package.HasLocalModifications}";
+        _route.InstalledExtensionDetails.Content = $"{PackageTypeLabel(package.Manifest.PackageType)} Â· {package.Manifest.DisplayName} {package.Manifest.Version}\n{package.Manifest.Description}\nPublisher: {package.Manifest.Publisher}\nGranted permissions: {PermissionLabel(package.GrantedPermissions)}\nEnabled: {package.IsEnabled} Â· State: {package.State}\nSource ID: {package.SourceId}\nLocal modifications: {package.HasLocalModifications}";
         _route.ExtensionToggleButton.Content = package.IsEnabled ? "Disable" : "Enable";
         if (_uninstallConfirmationId != package.Id) _route.ExtensionUninstallButton.Content = "Uninstall";
     }
@@ -580,7 +582,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _refreshingLearning = true;
         try
         {
-            _route.SetLearningFeedback("Loading Background Learning state…");
+            _route.SetLearningFeedback("Loading Background Learning stateâ€¦");
             await _backgroundLearning.InitializeAsync(_lifetime.Token);
             var snapshot = await _backgroundLearning.GetSnapshotAsync(_lifetime.Token);
             _learningTasks = snapshot.Tasks;
@@ -601,7 +603,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             ShowSelectedApi();
             ShowSelectedTask();
             if (errors.Count > 0)
-                _route.SetLearningFeedback($"Background Learning loaded partially — {string.Join(" · ", errors)}");
+                _route.SetLearningFeedback($"Background Learning loaded partially â€” {string.Join(" Â· ", errors)}");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -638,7 +640,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_knowledgeMaintenance is null) return;
         try
         {
-            _route.SetLearningFeedback("Cleaning up stale, expired and superseded unpinned knowledge…");
+            _route.SetLearningFeedback("Cleaning up stale, expired and superseded unpinned knowledgeâ€¦");
             var result = await _knowledgeMaintenance.CleanupAsync(_lifetime.Token);
             await RefreshLearningAsync();
             _route.SetLearningFeedback(result.Summary);
@@ -828,11 +830,11 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
                 return;
             }
 
-            _route.SetStatus($"Installing {model}…");
+            _route.SetStatus($"Installing {model}â€¦");
             var progress = new Progress<double>(value =>
             {
                 _route.InstallProgress.Value = Math.Clamp(value, 0, 1);
-                _route.SetStatus($"Installing {model}… {Math.Round(Math.Clamp(value, 0, 1) * 100)}%");
+                _route.SetStatus($"Installing {model}â€¦ {Math.Round(Math.Clamp(value, 0, 1) * 100)}%");
             });
             await _ollama.PullModelAsync(model, progress, cancellationToken);
             _route.InstallProgress.Value = 1;
@@ -895,6 +897,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _disposed = true;
         _installCancellation?.Cancel();
         _lifetime.Cancel();
+        DetachUpdates();
         _installCancellation?.Dispose();
         _lifetime.Dispose();
         _route.Dispose();

@@ -7,7 +7,9 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
+using System.Reflection;
 using Haven.Application;
+using Haven.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Infrastructure;
@@ -258,9 +260,47 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ExtensionManager>();
         services.AddSingleton<PluginToolRuntime>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
+        services.AddSingleton<IUpdatePreferenceStore, VersionedUpdatePreferenceStore>();
+        services.AddSingleton(new Func<InstallationInfo>(WindowsInstallationDetector.DetectInstallationSource));
+        services.AddSingleton(new Func<string>(CurrentExecutableVersion));
+        // Documented override point: channel URLs stay on the placeholder template until product
+        // configuration supplies real release-feed endpoints; the Settings Updates section reports
+        // the not-yet-configured state honestly while the placeholder remains in place.
+        services.AddSingleton<DirectUpdateOptions>(provider => new DirectUpdateOptions
+        {
+            StableUrl = DirectUpdateOptions.PlaceholderChannelTemplate,
+            PreviewUrl = DirectUpdateOptions.PlaceholderChannelTemplate,
+            DevelopmentUrl = DirectUpdateOptions.PlaceholderChannelTemplate,
+            DataDirectory = provider.GetRequiredService<IAppPaths>().DataDirectory,
+        });
+        services.AddHttpClient(HavenDirectUpdateProvider.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Haven-Updates/1.0");
+        });
+        services.AddSingleton<HavenDirectUpdateProvider>(provider => new HavenDirectUpdateProvider(
+            provider.GetRequiredService<DirectUpdateOptions>(),
+            provider.GetRequiredService<IHttpClientFactory>().CreateClient(HavenDirectUpdateProvider.HttpClientName)));
+        services.AddSingleton<StoreUpdateProvider>();
+        services.AddSingleton<IReadOnlyDictionary<InstallationSource, IUpdateProvider>>(provider => new Dictionary<InstallationSource, IUpdateProvider>
+        {
+            [InstallationSource.MicrosoftStore] = provider.GetRequiredService<StoreUpdateProvider>(),
+            [InstallationSource.DirectInstall] = provider.GetRequiredService<HavenDirectUpdateProvider>(),
+        });
+        services.AddSingleton<UpdateOrchestrator>();
+        services.AddSingleton<IUpdateService>(provider => provider.GetRequiredService<UpdateOrchestrator>());
         services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();
         services.AddSingleton<ISingleInstanceService, SingleInstanceService>();
         return services;
+    }
+
+    /// <summary>
+    /// Reads the entry assembly's informational version so update comparisons run against the real product version; returns "0.0.0" when no attribute exists.
+    /// </summary>
+    private static string CurrentExecutableVersion()
+    {
+        var version = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return string.IsNullOrWhiteSpace(version) ? "0.0.0" : version!;
     }
 }

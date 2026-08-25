@@ -146,6 +146,7 @@ public sealed partial class App : Avalonia.Application
         _startupRecovery = _services.GetRequiredService<IStartupRecoveryCoordinator>();
         _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();
         AttachExceptionHooks();
+        AttachUpdateServices();
 
 #if !ANDROID
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -289,6 +290,87 @@ public sealed partial class App : Avalonia.Application
             _productionDiagnostics = null;
             _startupRecovery = null;
             DetachExceptionHooks();
+        }
+    }
+
+    private void AttachUpdateServices()
+    {
+        try
+        {
+            var services = _services;
+            var updates = services?.GetService<IUpdateService>();
+            if (services is null || updates is null) return;
+
+            // Every lifecycle transition is recorded so Settings/About can show honest state even
+            // when it changed before any surface existed. Failures arrive here as Failed reports.
+            updates.StatusChanged += OnUpdateStatusChanged;
+            UpdateOrchestrator.PendingUpdateDetectedOnStartup += OnPendingStartupUpdateDetected;
+
+            var paths = services.GetService<IAppPaths>();
+            var version = services.GetService<Func<string>>();
+            if (paths is not null && version is not null)
+            {
+                try
+                {
+                    UpdateOrchestrator.ApplyOnStartupCheck(
+                        paths.DataDirectory,
+                        version(),
+                        WindowsInstallationDetector.DetectInstallationSource().Source);
+                }
+                catch (Exception detectionFailure)
+                {
+                    _ = detectionFailure;
+                    // Staged-update detection is best-effort; absence of a result must never block startup.
+                }
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await updates.CheckInBackgroundAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // CheckInBackgroundAsync is no-throw by contract; this guard only keeps the detached task from crashing the process.
+                }
+            });
+        }
+        catch
+        {
+            // Update plumbing is optional to process start; problems resurface through the Settings Updates section.
+        }
+    }
+
+    private void OnUpdateStatusChanged(UpdateStatusReport report)
+    {
+        UpdateStatusSnapshot.Record(report);
+    }
+
+    private void OnPendingStartupUpdateDetected(UpdateStatusReport report)
+    {
+        UpdateStatusSnapshot.Record(report);
+        try
+        {
+            var notification = _services?.GetService<NotificationService>();
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    notification?.Show(
+                        "Staged update waiting",
+                        report.Message ?? "An update staged in a previous session is waiting for the external installer to apply it on the next start.",
+                        ToastKind.Info,
+                        TimeSpan.FromSeconds(12));
+                }
+                catch
+                {
+                    // Toast delivery must never break the update pipeline.
+                }
+            });
+        }
+        catch
+        {
         }
     }
 

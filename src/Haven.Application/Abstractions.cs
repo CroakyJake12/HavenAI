@@ -33,6 +33,12 @@ public interface IConversationRepository
     Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<IReadOnlyList<ConversationContextEntry>> GetContextEntriesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ConversationContextEntry>>([]);
     Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
+    /// <summary>
+    /// Deletes one persisted context entry scoped to the conversation. CompactSummary entries are protected because
+    /// they carry continuity required by future turns, so implementations must return false without deleting them;
+    /// unknown ids also return false rather than throwing.
+    /// </summary>
+    Task<bool> DeleteContextEntryAsync(Guid conversationId, Guid entryId, CancellationToken cancellationToken) => Task.FromResult(false);
     Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken);
 }
 

@@ -26,6 +26,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
         new("voice", "Voice", "Voice profiles and voice-related configuration.", ["voice", "speech", "microphone", "call", "profile"]),
         new("privacy", "Privacy & Memory", "Local-data boundaries, memory and background-learning status.", ["privacy", "memory", "knowledge", "background", "learning", "data"]),
         new("advanced", "Advanced", "Generation parameters and bounded tool-action limits.", ["advanced", "temperature", "context", "action", "limit", "generation"]),
+        new("updates", "Updates", "Installation source, current version, update channel and update checks.", ["updates", "upgrade", "channel", "stable", "preview", "development", "check now"]),
         new("about", "About Haven", "Product and runtime information.", ["about", "version", "runtime", "haven"])
     ];
 
@@ -94,6 +95,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
         _sections["voice"] = BuildVoice();
         _sections["privacy"] = BuildPrivacy();
         _sections["advanced"] = BuildAdvanced();
+        _sections["updates"] = BuildUpdates();
         _sections["about"] = BuildAbout();
         foreach (var section in _sections.Values) Content.Add(section);
 

@@ -1,7 +1,7 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Desktop/ViewModels/ChatPageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
- * What: This file owns ChatPageViewModel, PreparedAttachment, MessageBubbleViewModel, AgentItemViewModel, CapabilityItemViewModel, PromptItemViewModel, CatalogVisibility, ContainerItemViewModel, LessonItemViewModel, LessonGroupViewModel, ToolActivityViewModel, InlineQuestionViewModel, AttachmentItemViewModel. Read the type and member comments below as a map of each responsibility.
+ * What: This file owns ChatPageViewModel, PreparedAttachment, MessageBubbleViewModel, AgentItemViewModel, CapabilityItemViewModel, PromptItemViewModel, CatalogVisibility, ContainerItemViewModel, LessonItemViewModel, LessonGroupViewModel, ToolActivityViewModel, InlineQuestionViewModel, AttachmentItemViewModel, ContextEntryViewModel. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
@@ -286,6 +286,8 @@ public sealed class ChatPageViewModel : ObservableObject
         MoveLessonDownCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, 1));
         UseStarterCommand = new RelayCommand<string>(text => { if (!string.IsNullOrWhiteSpace(text)) Composer = text; });
         ResolveErrorsCommand = new AsyncRelayCommand(ResolveErrorsAsync);
+        RemoveContextEntryCommand = new RelayCommand<ContextEntryViewModel>(entry => _ = RemoveContextEntryAsync(entry));
+        ContextEntries.CollectionChanged += (_, _) => RaisePropertyChanged(nameof(HasContextEntries));
     }
 
     /// <summary>
@@ -521,6 +523,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<AttachmentItemViewModel> Attachments { get; } = [];
     /// <summary>
+    /// Gets or updates context entries, the persisted per-conversation context rows shown in the context card.
+    /// </summary>
+    public ObservableCollection<ContextEntryViewModel> ContextEntries { get; } = [];
+    /// <summary>
     /// Gets or updates effort levels, the bindable or domain state represented by this property.
     /// </summary>
     public IReadOnlyList<EffortLevel> EffortLevels { get; } = Enum.GetValues<EffortLevel>();
@@ -643,6 +649,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates context sweep, the bindable or domain state represented by this property.
     /// </summary>
     public double ContextSweep => ContextPercent * 3.6;
+    /// <summary>
+    /// Reports whether the current conversation has persisted context rows to show in the context card.
+    /// </summary>
+    public bool HasContextEntries => ContextEntries.Count > 0;
     /// <summary>
     /// Gets or updates show confidence, the bindable or domain state represented by this property.
     /// </summary>
@@ -927,6 +937,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates resolve errors command, the bindable or domain state represented by this property.
     /// </summary>
     public AsyncRelayCommand ResolveErrorsCommand { get; }
+    /// <summary>
+    /// Gets or updates remove context entry command so removable context rows can be deleted from the context card.
+    /// </summary>
+    public RelayCommand<ContextEntryViewModel> RemoveContextEntryCommand { get; }
 
     /// <summary>
     /// Performs initialize asynchronously so I/O does not block the caller's thread.
@@ -1413,6 +1427,7 @@ public sealed class ChatPageViewModel : ObservableObject
         ClearAttachment();
         _conversation = NewConversation(DateTimeOffset.UtcNow);
         ContextTokens = 0;
+        ContextEntries.Clear();
         RaiseContextProperties();
         Status = "Ready";
         RaiseMessageStateChanged();
@@ -2159,6 +2174,7 @@ public sealed class ChatPageViewModel : ObservableObject
                          Prompts.Where(item => item.IsActive).Sum(item => item.Instructions.Length) + _contextSummary.Length +
                          BuildContainerInstructions().Length + (IsStudy && SelectedLesson is null ? 0 : SelectedContainer?.Definition.Context.Length ?? 0);
         ContextTokens = Math.Max(0, (int)Math.Ceiling(characters / 3.7));
+        PopulateContextEntries(entries);
         RaiseContextProperties();
     }
 
@@ -2173,6 +2189,55 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(ContextLabel));
         RaisePropertyChanged(nameof(ContextRemainingLabel));
         RaisePropertyChanged(nameof(ContextSweep));
+    }
+
+    /// <summary>
+    /// Maps the same persisted context rows used by BuildRegisteredContextAsync into the bindable context card list.
+    /// </summary>
+    private void PopulateContextEntries(IReadOnlyList<ConversationContextEntry> entries)
+    {
+        ContextEntries.Clear();
+        var isTemporary = _conversation.IsTemporary;
+        foreach (var entry in entries)
+            ContextEntries.Add(new ContextEntryViewModel(
+                entry.Id,
+                entry.Title,
+                ContextEntryViewModel.CategoryLabelFor(entry.Kind),
+                Truncate(entry.Content, 180),
+                entry.Kind != ContextEntryKind.CompactSummary && !isTemporary,
+                entry.CreatedAt));
+    }
+
+    /// <summary>
+    /// Deletes one removable context row through the repository; protected compact summaries are refused with an explanation.
+    /// </summary>
+    private async Task RemoveContextEntryAsync(ContextEntryViewModel? entry)
+    {
+        if (entry is null) return;
+        if (!entry.IsRemovable)
+        {
+            Status = "Compact summaries cannot be removed individually.";
+            return;
+        }
+        var conversationId = _conversation.Id;
+        bool removed;
+        try
+        {
+            removed = await _conversations.DeleteContextEntryAsync(conversationId, entry.EntryId, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            if (_conversation.Id == conversationId) Status = $"Could not remove \"{entry.Label}\": {exception.Message}";
+            return;
+        }
+        if (_conversation.Id != conversationId) return;
+        if (!removed)
+        {
+            Status = "That context entry is no longer available.";
+            return;
+        }
+        if (ContextEntries.FirstOrDefault(item => item.EntryId == entry.EntryId) is { } stale) ContextEntries.Remove(stale);
+        Status = $"Removed \"{entry.Label}\" from this conversation's context.";
     }
 
     /// <summary>
@@ -3124,6 +3189,32 @@ public sealed record ToolActivityViewModel(string Title, string Detail, bool Suc
 /// Represents inline question view model and keeps its related state and behavior together.
 /// </summary>
 public sealed record InlineQuestionViewModel(string Question, IReadOnlyList<string> Options);
+
+/// <summary>
+/// Represents one persisted conversation context row projected for the context card, with a human category label
+/// and the removal flag that keeps protected compact summaries out of individual deletion.
+/// </summary>
+public sealed record ContextEntryViewModel(
+    Guid EntryId,
+    string Label,
+    string CategoryLabel,
+    string Preview,
+    bool IsRemovable,
+    DateTimeOffset CreatedAt)
+{
+    /// <summary>
+    /// Maps a persisted context kind to its human-readable category label; compact summaries are explicitly marked protected.
+    /// </summary>
+    public static string CategoryLabelFor(ContextEntryKind kind) => kind switch
+    {
+        ContextEntryKind.Registered => "Registered context",
+        ContextEntryKind.CompactSummary => "Compacted summary (protected)",
+        ContextEntryKind.Decision => "Decision",
+        ContextEntryKind.ErrorPattern => "Error pattern",
+        ContextEntryKind.HandoffEvidence => "Handoff evidence",
+        _ => "Context"
+    };
+}
 
 /// <summary>
 /// Represents attachment item view model and keeps its related state and behavior together.
