@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Haven.Core\Haven.Core.csproj" />
     <ProjectReference Include="..\..\src\Haven.Application\Haven.Application.csproj" />
+    <ProjectReference Include="..\..\src\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <!-- Scheduled-task tests now target Haven.Application directly. -->
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
