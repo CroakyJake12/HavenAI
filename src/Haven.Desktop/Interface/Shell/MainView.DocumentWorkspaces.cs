@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Views.Pages.Boards;
 using Haven.Desktop.Views.Pages.Canvas;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Present;
@@ -17,7 +18,8 @@ public sealed partial class MainView
         key.Equals("write", StringComparison.OrdinalIgnoreCase)
         || key.Equals("canvas", StringComparison.OrdinalIgnoreCase)
         || key.Equals("present", StringComparison.OrdinalIgnoreCase)
-        || key.Equals("data", StringComparison.OrdinalIgnoreCase);
+        || key.Equals("data", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("boards", StringComparison.OrdinalIgnoreCase);
 
     private Control CreateDocumentWorkspace(string key)
     {
@@ -35,6 +37,8 @@ public sealed partial class MainView
             "data" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
                 services.GetRequiredService<IDataWorkbookFormatService>(), services.GetRequiredService<IDataWorkbookQueryService>(),
                 services.GetRequiredService<GenUiLiveActivityTracker>(), services.GetRequiredService<GenUiInstanceStore>()),
+            "boards" => new BoardsPage(_bus, services.GetRequiredService<IBoardsWorkspaceService>(),
+                services.GetService<INotesAttachmentStore>()),
             _ => throw new InvalidOperationException($"{key} is not a direct document workspace.")
         };
     }

@@ -152,6 +152,12 @@ public sealed class BuiltInModeSeed
             "spaces", "Spaces", "Organise chats, files and layouts into named Spaces", "folder",
             HavenMode.Chat, "[\"Spaces\"]", "[]", "[]", "[]", "Act as Haven Spaces. Help the user organise conversations, files and layouts into named Spaces. Opening a Space exposes its conversations; New Chat while scoped to a Space creates a Space-associated conversation. Never claim a conversation joined a Space without a confirmed membership change.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"productivity\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000023"),
+            "boards", "Boards", "Organise notebooks, pages, freeform ideas and live components", "notes",
+            HavenMode.Chat, "[\"Boards\"]", "[]", "[]", "[]", "Act as Haven Boards. Preserve stable board, section, page, block, freeform-object and live-component identities. Keep structured content semantic, use real attachment references, and report unavailable live sources truthfully.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"documents\",\"study\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

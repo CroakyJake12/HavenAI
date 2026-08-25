@@ -20,7 +20,7 @@ public readonly record struct CanvasPointerSample(
     double TiltY = 0,
     long TimestampMilliseconds = 0);
 
-public static class CanvasDocumentModel
+public static partial class CanvasDocumentModel
 {
     public const string ExperienceMetadataKey = "haven.experience";
     public const string ExperienceMetadataValue = "canvas";

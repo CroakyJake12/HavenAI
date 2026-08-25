@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHavenInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<IBoardsWorkspaceService, BoardsWorkspaceService>();
         services.AddSingleton<PrivacyPreferenceStore>();
         services.AddSingleton<IPrivacyPreferenceStore>(provider => provider.GetRequiredService<PrivacyPreferenceStore>());
         services.AddSingleton<ProductionDiagnostics>();

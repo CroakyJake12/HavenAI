@@ -57,6 +57,7 @@ public static class HavenAppRoutePolicy
             "translate" => new(HavenAppRouteKind.Translate, HavenSurface.Translate),
             "mesh" => new(HavenAppRouteKind.Mesh, HavenSurface.Mesh),
             "spaces" => new(HavenAppRouteKind.Spaces, HavenSurface.Spaces),
+            "boards" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Boards),
             "launcher" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher),
             _ => new(HavenAppRouteKind.BaseMode, SurfaceFor(app.BaseMode))
         };

@@ -39,6 +39,7 @@ public enum HavenSurface
     Spaces = 20,
     Terminal = 21,
     Mesh = 22,
+    Boards = 23,
 
     // UI aliases retained for saved layout JSON written before the rename.
     Teach = Study,
