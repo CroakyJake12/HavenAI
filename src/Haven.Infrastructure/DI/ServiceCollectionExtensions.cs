@@ -253,6 +253,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INativePluginProcessFactory, NativePluginProcessFactory>();
         services.AddSingleton<NativePluginRuntime>();
         services.AddSingleton<ExtensionManager>();
+        services.AddSingleton<PluginToolRuntime>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
         services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();

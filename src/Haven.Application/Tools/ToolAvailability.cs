@@ -14,7 +14,7 @@ namespace Haven.Application;
 /// <summary>
 /// Lists the supported tool runtime kind values used to make state explicit and type-safe.
 /// </summary>
-public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation, Mcp, Calendar }
+public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation, Mcp, Calendar, Plugin }
 
 /// <summary>
 /// Represents tool availability context and keeps its related state and behavior together.
@@ -53,7 +53,8 @@ public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> Automation,
     IReadOnlyList<OllamaToolDefinition> ReusableTasks,
     IReadOnlyList<OllamaToolDefinition>? Mcp = null,
-    IReadOnlyList<OllamaToolDefinition>? Calendar = null);
+    IReadOnlyList<OllamaToolDefinition>? Calendar = null,
+    IReadOnlyList<PluginToolBinding>? Plugins = null);
 
 /// <summary>
 /// Represents tool availability plan and keeps its related state and behavior together.
@@ -192,6 +193,7 @@ public sealed class ToolAvailabilityPlanner
         PlanAutomations(context, sources.Automation, sources.ReusableTasks, definitions, routes, reasons, capabilities);
         PlanMcp(sources.Mcp ?? [], definitions, routes);
         PlanCalendar(sources.Calendar ?? [], definitions, routes);
+        PlanPlugins(sources.Plugins ?? [], definitions, routes);
         return new ToolAvailabilityPlan(definitions, routes, reasons, capabilities);
     }
 
@@ -349,6 +351,13 @@ public sealed class ToolAvailabilityPlanner
     {
         if (RuntimeSafetyState.IsSafeMode) return;
         foreach (var definition in source) Add(definition, ToolRuntimeKind.Calendar, definitions, routes);
+    }
+
+    private static void PlanPlugins(IReadOnlyList<PluginToolBinding> source,
+        List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
+    {
+        if (RuntimeSafetyState.IsSafeMode) return;
+        foreach (var binding in source) Add(binding.Definition, ToolRuntimeKind.Plugin, definitions, routes);
     }
 
     /// <summary>

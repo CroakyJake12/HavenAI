@@ -94,9 +94,15 @@ public sealed partial class App : Avalonia.Application
             provider.GetRequiredService<AutomationToolRuntime>(),
             mcpTools: provider.GetRequiredService<McpToolRuntime>(),
             calendarTools: provider.GetRequiredService<CalendarConnectionToolRuntime>(),
+            pluginTools: provider.GetRequiredService<PluginToolRuntime>(),
             executionEvents: provider.GetRequiredService<IExecutionEventSink>(),
             recovery: provider.GetRequiredService<AutonomousRecoveryService>(),
-            remediations: provider.GetRequiredService<RemediationCoordinator>()));
+            remediations: provider.GetRequiredService<RemediationCoordinator>(),
+            personalities: provider.GetRequiredService<ModelPersonalityService>(),
+            modelPermissions: provider.GetRequiredService<ModelPermissionEvaluator>(),
+            defaultProviders: provider.GetRequiredService<IDefaultProviderStore>(),
+            checkpoints: provider.GetRequiredService<CheckpointService>(),
+            projectInstructionFiles: provider.GetRequiredService<IProjectInstructionSource>()));
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<Services.AvatarStore>();
         collection.AddSingleton<Services.OllamaWakeService>();

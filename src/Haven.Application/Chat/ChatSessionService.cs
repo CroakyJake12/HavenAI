@@ -29,6 +29,7 @@ public sealed class ChatSessionService(
     ChatModelInventoryCache? modelInventory = null,
     McpToolRuntime? mcpTools = null,
     CalendarConnectionToolRuntime? calendarTools = null,
+    PluginToolRuntime? pluginTools = null,
     IExecutionEventSink? executionEvents = null,
     AutonomousRecoveryService? recovery = null,
     RemediationCoordinator? remediations = null,
@@ -320,6 +321,7 @@ public sealed class ChatSessionService(
         var mcpDefinitions = mcpTools is null
             ? []
             : await mcpTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
+        var pluginBindings = pluginTools?.GetBindings(selectedRegisteredCapabilities) ?? [];
         var calendarDefinitions = calendarTools is null
             ? []
             : await calendarTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
@@ -332,7 +334,8 @@ public sealed class ChatSessionService(
             browserPermission,
             computerPassCandidate.Definitions,
             mcpDefinitions,
-            calendarDefinitions);
+            calendarDefinitions,
+            pluginBindings);
 
         var modelPlan = availabilityPlan.RestrictToModel(turnModel);
         var modelCapabilities = FilterCapabilitiesForTurn(
@@ -431,6 +434,15 @@ public sealed class ChatSessionService(
                     return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, token).ConfigureAwait(false);
                 if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
                     return await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Plugin && pluginTools is not null)
+                {
+                    var binding = pluginBindings.FirstOrDefault(item => item.Definition.Name.Equals(call.Name, StringComparison.Ordinal));
+                    if (binding is null)
+                        return new WorkspaceToolResult(
+                            new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Plugin binding was not found for this pass.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                            "Tool error: plugin binding was not found for this pass.");
+                    return await pluginTools.ExecuteAsync(binding, call, execution.OperationId, activeActionId ?? parentActionId, token).ConfigureAwait(false);
+                }
                 if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
                     return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
                 if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
@@ -1007,7 +1019,8 @@ public sealed class ChatSessionService(
         PermissionMode browserPermission,
         IReadOnlyList<OllamaToolDefinition> computerDefinitions,
         IReadOnlyList<OllamaToolDefinition>? mcpDefinitions = null,
-        IReadOnlyList<OllamaToolDefinition>? calendarDefinitions = null) =>
+        IReadOnlyList<OllamaToolDefinition>? calendarDefinitions = null,
+        IReadOnlyList<PluginToolBinding>? pluginBindings = null) =>
         (toolAvailability ?? ToolAvailabilityPlanner.Default).Create(
             new ToolAvailabilityContext(
                 mode,
@@ -1028,7 +1041,8 @@ public sealed class ChatSessionService(
                 automationTools?.GetDefinitions(true, false) ?? [],
                 automationTools?.GetDefinitions(false, true) ?? [],
                 mcpDefinitions ?? [],
-                calendarDefinitions ?? []));
+                calendarDefinitions ?? [],
+                pluginBindings ?? []));
 
     /// <summary>
     /// Performs the approvable step owned by this component.
