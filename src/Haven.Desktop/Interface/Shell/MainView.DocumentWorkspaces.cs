@@ -1,11 +1,8 @@
 ﻿using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
-<<<<<<< HEAD
-using Haven.Desktop.Views.Pages.Boards;
-=======
 using Haven.Desktop.Services;
->>>>>>> 61fa1bc (feat(accessibility): continuous read-aloud with playback controls)
+using Haven.Desktop.Views.Pages.Boards;
 using Haven.Desktop.Views.Pages.Canvas;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Present;

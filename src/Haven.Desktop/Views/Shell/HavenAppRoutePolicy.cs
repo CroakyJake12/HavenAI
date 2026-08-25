@@ -1,4 +1,4 @@
-using Haven.Core;
+﻿using Haven.Core;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -24,7 +24,8 @@ public enum HavenAppRouteKind
     Terminal = 12,
     Play = 13,
     Mesh = 14,
-    Spaces = 15
+    Spaces = 15,
+    Maps = 16
 }
 
 /// <summary>Describes the concrete route and visible surface for an App.</summary>
@@ -58,6 +59,7 @@ public static class HavenAppRoutePolicy
             "mesh" => new(HavenAppRouteKind.Mesh, HavenSurface.Mesh),
             "spaces" => new(HavenAppRouteKind.Spaces, HavenSurface.Spaces),
             "boards" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Boards),
+            "maps" => new(HavenAppRouteKind.Maps, HavenSurface.Maps),
             "launcher" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher),
             _ => new(HavenAppRouteKind.BaseMode, SurfaceFor(app.BaseMode))
         };

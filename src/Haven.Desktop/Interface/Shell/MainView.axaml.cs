@@ -1647,6 +1647,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (openInNewTab) AddNewTab();
             await OpenSpacesAsync();
         }
+        else if (route.Kind == HavenAppRouteKind.Maps)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenMaps();
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);

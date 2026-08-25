@@ -30,7 +30,7 @@ public sealed class ModeIdentityTests
         string[] expectedKeys =
         [
             "chat", "study", "automations", "terminal", "tasks", "studio", "browse", "plan", "training",
-            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write", "mesh", "spaces", "boards"
+            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write", "mesh", "spaces", "boards", "maps"
         ];
 
         Assert.Equal(expectedKeys, BuiltInModeSeed.Modes.Select(mode => mode.Key));

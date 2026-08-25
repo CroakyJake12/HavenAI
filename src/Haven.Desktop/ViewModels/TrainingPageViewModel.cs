@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.ViewModels;
 
@@ -411,6 +412,10 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
                 StatusMessage = $"Attempt {_attemptCounter} complete — {result.TotalToolCalls} actions, " +
                     $"{result.FilesChanged} files changed{(result.AllTestsPassed ? ", tests passed" : "")}";
 
+                // Optional LLM-judge pass: appended AFTER the heuristic report exists so the persisted
+                // attempt report carries both the heuristic summary and the judge evaluation.
+                await TryAppendJudgeEvaluationAsync(TaskPrompt, timeout.Token);
+
                 var dbAttempt = new TrainingAttempt(
                     Guid.NewGuid(), _currentRun!.Id, _attemptCounter, CurrentReport,
                     null, "", result.CompletedBeforeTimeout, result.Elapsed, DateTimeOffset.UtcNow);
@@ -464,6 +469,44 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     /// Stores feedback tcs locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private TaskCompletionSource? _feedbackTcs;
+
+    /// <summary>
+    /// Optional Testing Labs judge hook. When Desktop services expose a JudgeService and a judge model is
+    /// configured (UserPreferences DefaultModel for now), the fresh heuristic report is scored and a
+    /// "Judge evaluation" section is appended to CurrentReport; the score persists only as report text
+    /// because TrainingAttempt has no score column. Any failure degrades honestly to the heuristic-only
+    /// report instead of blocking the session. Multi-model matrix: preferences expose only one default
+    /// model today, so cross-model matrix scoring is intentionally not attempted here.
+    /// </summary>
+    private async Task TryAppendJudgeEvaluationAsync(string taskPrompt, CancellationToken cancellationToken)
+    {
+        var judgeModel = _preferences.DefaultModel;
+        if (string.IsNullOrWhiteSpace(judgeModel)) return;
+        var judge = App.Services?.GetService<JudgeService>();
+        if (judge is null) return;
+        try
+        {
+            var score = await TrainingJudgeIntegration.TryScoreAsync(
+                judge, _ollama, judgeModel, taskPrompt, CurrentReport, cancellationToken);
+            if (score is not { } judged)
+            {
+                _log("Judge scoring unavailable — heuristic results kept.");
+                return;
+            }
+            CurrentReport += Environment.NewLine + Environment.NewLine +
+                $"## Judge evaluation (model {judged.JudgeModel})" + Environment.NewLine + Environment.NewLine +
+                $"Overall {judged.OverallPercent:0.#}% — {judged.ReasoningSummary}" + Environment.NewLine;
+            StatusMessage = $"Judge evaluation (model {judged.JudgeModel}): overall {judged.OverallPercent:0.#}%";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _log($"Judge evaluation skipped: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Performs the wait for feedback or timeout step owned by this component.

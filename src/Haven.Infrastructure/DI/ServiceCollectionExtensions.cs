@@ -153,7 +153,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CallCoordinator>();
         services.AddSingleton<ResponsiveCallCoordinator>();
         services.AddSingleton<VoiceProfileCatalog>();
-        services.AddSingleton<IKnowledgeLibrary, KnowledgeLibraryService>();
+        services.AddSingleton<KnowledgeLibraryService>();
+        services.AddSingleton<IKnowledgeLibrary>(provider => provider.GetRequiredService<KnowledgeLibraryService>());
+        services.AddSingleton<IMemoryQuerySource>(provider => provider.GetRequiredService<KnowledgeLibraryService>());
         services.AddSingleton<IApiBank, ApiBankService>();
         services.AddSingleton<IKnowledgeMaintenanceService, KnowledgeMaintenanceService>();
         services.AddSingleton<BackgroundLearningScheduler>();
@@ -289,6 +291,16 @@ public static class ServiceCollectionExtensions
         });
         services.AddSingleton<UpdateOrchestrator>();
         services.AddSingleton<IUpdateService>(provider => provider.GetRequiredService<UpdateOrchestrator>());
+        services.AddHttpClient(OpenStreetMapService.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(OpenStreetMapService.UserAgent);
+        });
+        services.AddSingleton<IMapsSavedPlaceStore, MapsSavedPlaceStore>();
+        services.AddSingleton<OsmRasterTileSource>();
+        services.AddSingleton<ITileSource>(provider => provider.GetRequiredService<OsmRasterTileSource>());
+        services.AddSingleton<OsrmRoutingService>();
+        services.AddSingleton<IMapService, OpenStreetMapService>();
         services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();
         services.AddSingleton<ISingleInstanceService, SingleInstanceService>();

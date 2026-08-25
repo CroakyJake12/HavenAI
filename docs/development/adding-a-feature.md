@@ -25,6 +25,37 @@ and reconciled at startup — never recycle IDs. To make one launchable:
 4. Persist app-owned state in its own repository (forward-only migration).
 5. Add headless route tests proving the launch actually renders.
 
+## Adding a governance store or shared default
+
+Cross-surface policy (model fallback order, personality, model permissions,
+action default providers) is one shared subsystem — never per-surface logic.
+
+1. Define the store contract in `src/Haven.Application`
+   (`IModelPersonalisationStore`, `IDefaultProviderStore` are precedents).
+2. Implement it in Infrastructure over `IVersionedSettingsStore` with a
+   versioned key `<area>.<name>.v1`; corrupt data must fall back to defaults
+   (`src/Haven.Infrastructure/Persistence/ModelGovernanceStores.cs`).
+3. Consume it through the evaluator/service (`ModelPersonalityService`,
+   `ModelPermissionEvaluator`, `DefaultProviderResolver`) instead of
+   re-deriving the decision at each call site.
+4. Register it in DI and surface edits only through the owning Settings page.
+
+## Adding a tool runtime
+
+New execution surfaces join the shared chat tool loop; they never become a
+parallel planner. Precedent: `ToolRuntimeKind.Plugin`.
+
+1. Add the `ToolRuntimeKind` value and an Application runtime that turns
+   capability implementation keys into tool definitions
+   (`PluginToolRuntime` binds `native-plugin:{package}:{capability}`).
+2. Dispatch inside `ChatSessionService.ExecuteRuntimeAsync` so permission
+   checks, recovery/remediation and Action Graph events apply unchanged.
+3. Keep permission enforcement inside the single authority that owns the
+   capability (`NativePluginRuntime` for plugins; MCP tools flow through
+   `McpToolRuntime` the same way).
+4. Return honest `WorkspaceToolResult` failures with descriptors so retry and
+   remediation stay available.
+
 ## Changing UI
 
 Follow `docs/ui/building-ui.md`. Non-negotiables: shared component system,

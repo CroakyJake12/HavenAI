@@ -47,6 +47,7 @@ Delegation and generated code do not relax these requirements. The parent agent 
 - Launch routing lives in `MainView.LaunchAppAsync`. Every enabled App entry must lead to a working surface or an honest setup-required state.
 - App-specific chat workspaces use `NewChatPage.ConfigureMode`, which carries their instructions into the model context while preserving the compatible base mode.
 - The window background follows `HavenSurface`, not `HavenMode`, through `TidalBackground`.
+- Maps runs on a switchable OpenStreetMap provider stack (`OpenStreetMapService`, `OsmRasterTileSource`, `OsrmRoutingService`). Provider terms are mandatory: visible attribution via `MapsAttribution`, identifying User-Agent, HTTPS-only endpoints, ≥7-day cache lifetime, viewport-only tile fetching and at most one Nominatim request per second. Endpoints are switchable by configuration; never hard-code a new provider without honouring its licence.
 
 ## Header and commands
 
@@ -65,6 +66,8 @@ Delegation and generated code do not relax these requirements. The parent agent 
 ## Persistence and safety
 
 - Add schema changes as forward-only migrations with fixtures from every prior schema. Back up before migrations and preserve all conversations, messages, groups, projects, lessons, planner items, calls, and mode IDs.
+- Model governance (fallback order, personality/nicknames, model permissions) and action default-providers live in shared stores — `src/Haven.Application/ModelGovernance/ModelGovernance.cs` and `src/Haven.Application/Actions/ProviderResolution.cs`, persisted under versioned settings keys (`models.*`, `actions.default-providers.v1`). Never recreate provider-resolution or model-permission logic in a surface; consume the stores and evaluators.
+- Agentic file changes are protected by the shared checkpoint system (`CheckpointService`): restore plans replay recorded before-content from the SQLite `workspace_versions` history, so recovery works in non-Git directories. Do not add Git-only rollback paths for agentic edits.
 - Keep project, file, Git, build, and test tools restricted to Studio or an explicitly accepted workspace. Chat Groups and Study references are context, not code workspaces.
 - Destructive, external, privileged, and ambiguous tool actions require the existing approval path. Never report an operation as successful without an observed service result.
 - Carry cancellation through async I/O and reject stale UI results after rapid navigation.

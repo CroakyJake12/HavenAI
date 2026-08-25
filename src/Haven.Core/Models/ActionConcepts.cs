@@ -100,7 +100,7 @@ public static class SuggestedActionEngine
 
         var suggestions = new List<SuggestedAction>(2);
 
-        if (!workspaceAttached && Regex.IsMatch(prompt, @"\b(remind|reminder|schedule|calendar|appointment|meeting|forget)\b", RegexOptions.IgnoreCase)
+        if (!workspaceAttached && Regex.IsMatch(prompt, @"\b(remind|reminder|schedul|calendar|appointment|meeting|forget)", RegexOptions.IgnoreCase)
             && !Regex.IsMatch(prompt, @"\b(already|did you|i reminded|cancelled)\b", RegexOptions.IgnoreCase))
         {
             suggestions.Add(new SuggestedAction(

@@ -158,6 +158,12 @@ public sealed class BuiltInModeSeed
             "boards", "Boards", "Organise notebooks, pages, freeform ideas and live components", "notes",
             HavenMode.Chat, "[\"Boards\"]", "[]", "[]", "[]", "Act as Haven Boards. Preserve stable board, section, page, block, freeform-object and live-component identities. Keep structured content semantic, use real attachment references, and report unavailable live sources truthfully.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"documents\",\"study\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000024"),
+            "maps", "Maps", "Find places, view OpenStreetMap maps, get directions and save places", "map",
+            HavenMode.Chat, "[\"Maps\"]", "[]", "[]", "[]", "Act as Haven Maps. Answer place, map and direction questions only from provider-backed OpenStreetMap and OSRM results, keep the required OpenStreetMap attribution visible on the map surface, and never invent places, coordinates or routes when the providers are unavailable.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"travel\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

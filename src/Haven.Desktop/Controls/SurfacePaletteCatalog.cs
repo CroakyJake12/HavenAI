@@ -1,4 +1,4 @@
-using Avalonia.Media;
+﻿using Avalonia.Media;
 using Avalonia.Styling;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Tokens;
@@ -83,6 +83,7 @@ internal static class SurfacePaletteCatalog
             [HavenSurface.Go] = Hue("#FF171D4A", "#FF3527FF", "#FF4658FF", "#FF2115C7", "#FF202750"),
             [HavenSurface.Spaces] = Hue("#FF221A4A", "#FF9D5CFF", "#FFB87EFF", "#FF6E2BC7", "#FF29224F"),
             [HavenSurface.Boards] = Hue("#FF12332A", "#FF1FA37A", "#FF5FC2A0", "#FF0E6E52", "#FF1A3A31"),
+            [HavenSurface.Maps] = Hue("#FF10271E", "#FF2FBF7F", "#FF6BD9A4", "#FF12855A", "#FF17342A"),
             [HavenSurface.Dashboard] = Hue("#FF171D4A", "#FF3527FF", "#FF5868FF", "#FF2115C7", "#FF202750")
         };
 
