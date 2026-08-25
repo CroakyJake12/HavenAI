@@ -92,6 +92,11 @@ internal static class AndroidHavenBootstrap
 
             var preferences = services.GetRequiredService<UserPreferencesService>();
             preferences.ApplyAppearance(preferences.Appearance, save: false);
+            // Keyboard AI uses normal Haven model routing and stays off unless the
+            // user enables it; secure fields never reach the executor regardless.
+            HavenKeyboardAiController.Configure(new OllamaKeyboardAiExecutor(
+                services.GetRequiredService<IOllamaClient>(),
+                preferences.DefaultModel ?? string.Empty));
             _ = services.GetRequiredService<AndroidNotificationBridge>();
             _ = services.GetRequiredService<AndroidProjectorDisplayService>();
 
