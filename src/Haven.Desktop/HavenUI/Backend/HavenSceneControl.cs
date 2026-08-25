@@ -33,6 +33,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private HavenInputRouter? _input;
     private bool _processingMotion;
     private TopLevel? _topLevel;
+    private static readonly Cursor TextCursor = new(StandardCursorType.Ibeam);
 
     public HavenSceneControl() : this(new HavenDesktopImageResolver(), new HavenAvaloniaNativeControlResolver()) { }
 
@@ -259,6 +260,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             new HavenPoint(p.X, p.Y),
             e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse,
             ToHavenModifiers(e.KeyModifiers));
+        Cursor = _input?.Hovered is Input ? TextCursor : null;
         InvalidateScene();
     }
 
@@ -266,6 +268,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     {
         base.OnPointerExited(e);
         _input?.PointerExited();
+        Cursor = null;
         InvalidateScene();
     }
 
@@ -377,10 +380,11 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         var layoutInfo = InputTextLayout(input, contentWidth);
         using var layout = CreateEditableTextLayout(layoutInfo);
 
-        var verticalOffset = input.Multiline ? 0d : Math.Max(0d, (contentHeight - layout.Height) / 2d);
+        var centerVertically = !input.Multiline || (input.CenterVerticallyWhenCompact && !input.DisplayText.Contains('\n'));
+        var verticalOffset = centerVertically ? Math.Max(0d, (contentHeight - layout.Height) / 2d) : 0d;
         var point = new Point(
             Math.Max(0d, localPoint.X - left),
-            Math.Max(0d, localPoint.Y - top - verticalOffset));
+            Math.Max(0d, localPoint.Y - top - verticalOffset + input.ScrollY));
         var hit = layout.HitTestPoint(point).CharacterHit;
         return Math.Clamp(hit.FirstCharacterIndex + hit.TrailingLength, 0, input.Text.Length);
     }
@@ -434,7 +438,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         input.GetValue(HavenProperties.FontSize),
         input.GetValue(HavenProperties.FontWeight),
         contentWidth,
-        CenterVertically: !input.Multiline);
+        CenterVertically: !input.Multiline || (input.CenterVerticallyWhenCompact && !input.DisplayText.Contains('\n')));
 
     internal static HavenInputModifiers ToHavenModifiers(KeyModifiers modifiers) => new(
         Shift: modifiers.HasFlag(KeyModifiers.Shift),

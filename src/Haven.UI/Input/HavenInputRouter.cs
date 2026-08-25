@@ -255,7 +255,11 @@ public sealed class HavenInputRouter(HavenElement root)
         var remainingX = deltaX;
         var remainingY = deltaY;
         var changed = false;
-        for (var element = HitTest(point); element is not null; element = element.Parent)
+        var hit = HitTest(point);
+        var input = FindAncestor<Input>(hit);
+        if (input is { Multiline: true } && Math.Abs(remainingY) > .0001d && input.ScrollBy(remainingY))
+            return true;
+        for (var element = hit; element is not null; element = element.Parent)
         {
             if (Math.Abs(remainingX) < .0001d && Math.Abs(remainingY) < .0001d) return true;
             if (element is IHavenScrollInputTarget scrollTarget

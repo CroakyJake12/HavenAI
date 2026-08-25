@@ -536,7 +536,7 @@ public sealed class AddMenu : HavenIconButton, IDisposable
         _flyout?.Hide();
     }
 
-    public enum AddMenuAction { File, Agent, Capability, Instruction, App, AllowActions, VisualResponses }
+    public enum AddMenuAction { File, Agent, Capability, Instruction, App, MultipleResponses, AllowActions, VisualResponses }
 }
 
 public sealed record AddMenuSelection(AddMenu.AddMenuAction Kind, object Item);

@@ -1,7 +1,12 @@
-<Container Name="ChatboxRoot" Layout="Grid" Columns="44px 1fr 44px" Rows="44px" Width="100%" Gap="8px" Padding="7px" Background="SurfaceRaised" Radius="28px" Shadow="Card">
-  <Button Name="AddMenu" Variant="Icon" Column="0" Width="44px" Height="44px" MinHeight="44px" Radius="22px" />
-  <Icon Name="AddMenuIcon" Key="plus" Column="0" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />
-  <Input Name="Instruction" Multiline="true" SubmitOnEnter="true" Column="1" MinHeight="44px" Height="44px" Background="Transparent" Padding="0px 12px" Radius="22px" Placeholder="Ask Haven anything" />
-  <Button Name="Send" Variant="Icon" Column="2" Width="44px" Height="44px" MinHeight="44px" Radius="22px" />
-  <Icon Name="SendIcon" Key="arrow-up" Column="2" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />
+<Container Name="ChatboxRoot" Layout="Vertical" Width="100%" Gap="4px" Padding="7px" Background="SurfaceRaised" Radius="28px" Shadow="Card">
+  <Container Name="AttachmentChips" Layout="Wrap" Width="100%" Gap="6px" Padding="2px 6px 0px 6px" Visibility="Collapsed" />
+  <Container Name="ComposerRow" Layout="Grid" Columns="44px 1fr 44px" Rows="Auto" Width="100%" Gap="8px">
+    <Button Name="AddMenu" Variant="Icon" Column="0" Width="44px" Height="44px" MinHeight="44px" Radius="22px" VerticalAlignment="End" />
+    <Icon Name="AddMenuIcon" Key="plus" Column="0" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="End" Margin="0px 0px 0px 12px" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />
+    <Input Name="Instruction" Multiline="true" SubmitOnEnter="true" Column="1" MinHeight="44px" MaxHeight="126px" Background="Transparent" Padding="0px 12px" Radius="22px" Overflow="Scroll" Clip="true" FontWeight="500" Placeholder="Ask Haven anything" />
+    <Button Name="ChatSettings" Variant="Icon" Column="2" Width="44px" Height="44px" MinHeight="44px" Radius="22px" VerticalAlignment="End" Visibility="Collapsed" />
+    <Icon Name="ChatSettingsIcon" Key="settings" Column="2" Width="18px" Height="18px" HorizontalAlignment="Center" VerticalAlignment="End" Margin="0px 0px 0px 13px" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" Visibility="Collapsed" />
+    <Button Name="Send" Variant="Icon" Column="2" Width="44px" Height="44px" MinHeight="44px" Radius="22px" VerticalAlignment="End" />
+    <Icon Name="SendIcon" Key="arrow-up" Column="2" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="End" Margin="0px 0px 0px 12px" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />
+  </Container>
 </Container>

@@ -703,11 +703,12 @@ internal sealed partial class ChatHavenScene : IDisposable
                     <Button Name="NewTask" Variant="Ghost" Content="New task" MinHeight="34px" />
                     <Button Name="TaskHistory" Variant="Ghost" Content="Task history" MinHeight="34px" />
                   </Container>
-                  <Button Name="ResolveProblems" Variant="Ghost" Content="Resolve problems" MinHeight="34px" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Button Name="ResolveProblems" Variant="Primary" IconKey="warning" Content="Resolve Issues" MinHeight="34px" HorizontalAlignment="End" Background="Warning" Foreground="TextOnAccent" Padding="7px 14px" Radius="17px" Visibility="Collapsed" />
                   <Text Name="Status" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
                   <Text Name="AttachmentStatus" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
                   <Button Name="ManageAttachments" Variant="Ghost" Content="Manage attachments" MinHeight="32px" HorizontalAlignment="Center" Visibility="Collapsed" />
                   <Prefab InstID="Main-Chatbox" ID="Chatbox" />
+                  <Text Name="AiDisclaimer" Content="AI can make mistakes. Double-check important information and tasks." FontSize="10" FontWeight="500" Foreground="TextSoft" HorizontalAlignment="Center" />
                 </Container>
               </Container>
             </Page>

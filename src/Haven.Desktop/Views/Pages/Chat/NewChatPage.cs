@@ -23,7 +23,7 @@ namespace Haven.Desktop.Views.Pages.Chat;
 /// Production Haven-native conversation surface. Avalonia owns only the platform host/window/file-picker boundary;
 /// visible Chat composition, editing, transcript rendering, menus and generated UI live in Haven scene elements.
 /// </summary>
-public sealed class NewChatPage : UserControl, IDisposable
+public sealed partial class NewChatPage : UserControl, IDisposable
 {
     private readonly HavenEventBus _bus;
     private readonly IConversationRepository _conversations;
@@ -59,7 +59,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly Dictionary<Guid, long> _thinkingEndTick = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), ChatGenUiSurfaceMount> _generatedSurfaces = [];
     private readonly ChatGenUiNativeControlResolver _genUiNativeResolver = new();
-    private DualModelChatController? _dual;
+    private DualModelChatController? _dual = null;
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
     private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
@@ -137,6 +137,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         AutomationProperties.SetName(Scene, "Haven-native Chat");
         Content = Scene;
         WireScene();
+        ConfigureChatQolInteractions();
 
         _sendProgressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _sendProgressTimer.Tick += (_, _) =>
@@ -239,6 +240,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         try
         {
             var models = await _ollama.GetModelsAsync(CancellationToken.None).ConfigureAwait(false);
+            await CacheModelDisplayNamesAsync(models);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 var selectedName = _selectedModel?.Name ?? _preferences.DefaultModel;
@@ -511,6 +513,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                 break;
         }
         RefreshResponseControls();
+        RefreshInlineAttachmentChips();
     }
 
     public bool IsCapabilityAttached(Guid capabilityId) => _taskAttachments.IsCapabilityAttached(capabilityId);
@@ -689,16 +692,6 @@ public sealed class NewChatPage : UserControl, IDisposable
         _bus.RegisterElement("Chat.Composer.Send", Scene);
         _bus.RegisterElement("Chat.Problems.Resolve", Scene);
 
-        // Dual-model comparison is optional: it only appears when App services exposed DualModelService.
-        if (App.Services?.GetService<DualModelService>() is { } dualModels)
-        {
-            _dual = new DualModelChatController(dualModels);
-            _scene.EnsureDualModelBar();
-            _scene.DualToggleRequested += OnDualToggleRequested;
-            _scene.DualModelPickerRequested += OnDualModelPickerRequested;
-            _scene.DualSecondModelChosen += OnDualSecondModelChosen;
-        }
-
         _scene.SendRequested += async (_, _) => await SubmitCurrentInstructionAsync();
         _scene.StopRequested += OnStopRequested;
         _scene.ResolveProblemsRequested += (_, _) =>
@@ -706,12 +699,8 @@ public sealed class NewChatPage : UserControl, IDisposable
             _bus.Fire("Chat.Problems.Resolve.Click");
             ShowResolveProblems();
         };
-        _scene.AddActionSelected += (_, action) => AddActionSelected?.Invoke(this, action);
-        _scene.CatalogItemSelected += (_, selection) =>
-        {
-            ApplyAddSelection(selection);
-            AddCatalogItemSelected?.Invoke(this, selection);
-        };
+        _scene.AddActionSelected += (_, action) => OnSceneAddActionSelected(action);
+        _scene.CatalogItemSelected += (_, selection) => OnSceneCatalogItemSelected(selection);
         _scene.MessageActionRequested += OnMessageActionRequested;
         _scene.MarkdownCodeActionRequested += OnMarkdownCodeActionRequested;
         _scene.ContextRemoveRequested += async (_, entryId) => await RemoveContextEntryAsync(entryId);
@@ -1781,13 +1770,12 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private IReadOnlyList<ActiveCapability> ActiveCapabilitiesForCurrentChat()
     {
-        IEnumerable<CapabilityDefinition> allowed = EffectiveChatActionMode switch
-        {
-            ChatActionMode.JustChat => [],
-            ChatActionMode.AllowBasicActions => _availableCapabilities.Where(item => item.RiskClass is CapabilityRiskClass.ReadOnly or CapabilityRiskClass.Low),
-            _ => _availableCapabilities
-        };
-        return allowed.Select(ActiveCapability.FromDefinition).ToArray();
+        if (EffectiveChatActionMode == ChatActionMode.JustChat) return [];
+        IEnumerable<CapabilityDefinition> allowed = EffectiveChatActionMode == ChatActionMode.AllowBasicActions
+            ? _availableCapabilities.Where(item => item.RiskClass is CapabilityRiskClass.ReadOnly or CapabilityRiskClass.Low)
+            : _availableCapabilities;
+        allowed = allowed.Concat(_taskAttachments.Capabilities);
+        return allowed.DistinctBy(item => item.Id).Select(ActiveCapability.FromDefinition).ToArray();
     }
 
     private string? BuildRegisteredContext()

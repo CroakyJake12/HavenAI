@@ -122,16 +122,30 @@ public sealed class HavenSceneRenderer
         var hasText = !string.IsNullOrEmpty(input.Text);
         var displayText = input.DisplayText;
         var focused = input.State.HasFlag(HavenElementState.Focused);
-        var centerVertically = !input.Multiline;
+        var centerVertically = !input.Multiline || (input.CenterVerticallyWhenCompact && !displayText.Contains('\n'));
         var padding = input.GetValue(HavenProperties.Padding);
         var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
-        var rect = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));
-        var fullLayout = new HavenTextLayout(displayText, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+        var viewport = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));
+        var fullLayout = new HavenTextLayout(displayText, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), viewport.Width, centerVertically);
+        var estimatedLineHeight = Math.Max(input.GetValue(HavenProperties.FontSize) * 1.35d, 16d);
+        var explicitLines = Math.Max(1, displayText.Count(ch => ch == '\n') + 1);
+        var estimatedCharsPerLine = Math.Max(1, (int)Math.Floor(viewport.Width / Math.Max(4d, input.GetValue(HavenProperties.FontSize) * .56d)));
+        var wrappedLines = Math.Max(explicitLines, displayText.Split('\n').Sum(line => Math.Max(1, (int)Math.Ceiling(line.Length / (double)estimatedCharsPerLine))));
+        var contentHeight = Math.Max(viewport.Height, wrappedLines * estimatedLineHeight);
+        input.UpdateScrollMetrics(contentHeight, viewport.Height);
+        var rect = new HavenRect(viewport.X, viewport.Y - input.ScrollY, viewport.Width, Math.Max(viewport.Height, contentHeight));
 
         if (focused && hasText && input.HasSelection)
             context.Add(new HavenTextSelectionCommand(rect, fullLayout, input.SelectionStart, input.SelectionLength, new HavenTokenBrush("Accent"), opacity * .28d));
 
-        DrawText(hasText ? displayText : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: centerVertically);
+        var shown = hasText ? displayText : input.Placeholder;
+        if (!string.IsNullOrEmpty(shown))
+        {
+            var layout = hasText
+                ? fullLayout
+                : new HavenTextLayout(shown, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+            AddText(context, rect, layout, input.GetValue(HavenProperties.Foreground), hasText ? opacity : opacity * .64d);
+        }
         if (!focused) return;
 
         var caretIndex = Math.Clamp(input.CaretIndex, 0, displayText.Length);

@@ -23,6 +23,8 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private string _currentAgentName = "No Agent (Default)";
     private ChatActionMode _currentActionMode = ChatActionMode.AllowBasicActions;
     private GenerativeUiResponseMode _currentVisualMode = GenerativeUiResponseMode.Auto;
+    private bool _embeddedSearchVisible = true;
+    private bool _unifiedSearch;
     private bool _disposed;
 
     public ChatAddMenuSurface(Prefab prefab)
@@ -39,6 +41,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         InstructionsButton = prefab.GetComponent<HavenButton>("Instructions");
         CapabilitiesButton = prefab.GetComponent<HavenButton>("Capabilities");
         AppsButton = prefab.GetComponent<HavenButton>("Apps");
+        MultipleResponsesButton = prefab.GetComponent<HavenButton>("MultipleResponses");
         AllowActionsButton = prefab.GetComponent<HavenButton>("AllowActions");
         VisualResponsesButton = prefab.GetComponent<HavenButton>("VisualResponses");
         CurrentResponseState = prefab.GetComponent<HavenText>("CurrentResponseState");
@@ -49,6 +52,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         InstructionsButton.Invoked += OnInstructionsInvoked;
         CapabilitiesButton.Invoked += OnCapabilitiesInvoked;
         AppsButton.Invoked += OnAppsInvoked;
+        MultipleResponsesButton.Invoked += OnMultipleResponsesInvoked;
         AllowActionsButton.Invoked += OnAllowActionsInvoked;
         VisualResponsesButton.Invoked += OnVisualResponsesInvoked;
         CatalogSearch.Invalidated += OnCatalogSearchInvalidated;
@@ -67,12 +71,27 @@ internal sealed class ChatAddMenuSurface : IDisposable
     public HavenButton InstructionsButton { get; }
     public HavenButton CapabilitiesButton { get; }
     public HavenButton AppsButton { get; }
+    public HavenButton MultipleResponsesButton { get; }
     public HavenButton AllowActionsButton { get; }
     public HavenButton VisualResponsesButton { get; }
     public HavenText CurrentResponseState { get; }
 
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
+
+    public void SetEmbeddedSearchVisible(bool visible)
+    {
+        _embeddedSearchVisible = visible;
+        CatalogSearch.SetValue(HavenProperties.Visibility, visible ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+    }
+
+    public void SetThreadSettingsVisible(bool visible)
+    {
+        var state = visible ? HavenVisibility.Visible : HavenVisibility.Collapsed;
+        CurrentResponseState.SetValue(HavenProperties.Visibility, state);
+        AllowActionsButton.SetValue(HavenProperties.Visibility, state);
+        VisualResponsesButton.SetValue(HavenProperties.Visibility, state);
+    }
 
     public void SetCatalogue(
         IReadOnlyList<AgentDefinition> agents,
@@ -104,7 +123,10 @@ internal sealed class ChatAddMenuSurface : IDisposable
 
     public void Show()
     {
+        _unifiedSearch = false;
         _catalogAction = null;
+        _lastSearch = string.Empty;
+        MainMenu.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
         CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
         Overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
     }
@@ -112,27 +134,43 @@ internal sealed class ChatAddMenuSurface : IDisposable
     public void Hide()
     {
         _catalogAction = null;
+        _unifiedSearch = false;
         _lastSearch = string.Empty;
         CatalogSearch.Text = string.Empty;
+        MainMenu.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
         CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
         Overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
     }
 
     public void FilterCatalogue(string? query)
     {
-        CatalogSearch.Text = query ?? string.Empty;
+        _lastSearch = query ?? string.Empty;
+        if (_embeddedSearchVisible) CatalogSearch.Text = _lastSearch;
+        RebuildCatalogue();
+    }
+
+    public void ShowUnifiedSearch(string? query)
+    {
+        _catalogAction = null;
+        _unifiedSearch = true;
+        _lastSearch = query?.Trim() ?? string.Empty;
+        MainMenu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        CatalogSearch.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
+        Overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
         RebuildCatalogue();
     }
 
     private void OpenCatalogue(AddMenu.AddMenuAction action)
     {
+        _unifiedSearch = false;
         _catalogAction = action;
         _lastSearch = string.Empty;
         CatalogSearch.Text = string.Empty;
         CatalogSearch.Placeholder = action == AddMenu.AddMenuAction.Agent ? "Search Agents" : "Search";
         CatalogSearch.SetValue(
             HavenProperties.Visibility,
-            action is AddMenu.AddMenuAction.AllowActions or AddMenu.AddMenuAction.VisualResponses
+            !_embeddedSearchVisible || action is AddMenu.AddMenuAction.AllowActions or AddMenu.AddMenuAction.VisualResponses
                 ? HavenVisibility.Collapsed
                 : HavenVisibility.Visible);
         CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
@@ -143,8 +181,13 @@ internal sealed class ChatAddMenuSurface : IDisposable
     {
         foreach (var child in CatalogResults.Children.ToArray()) CatalogResults.Remove(child);
         _catalogRows.Clear();
+        if (_unifiedSearch)
+        {
+            RebuildUnifiedCatalogue();
+            return;
+        }
         if (_catalogAction is null) return;
-        var query = CatalogSearch.Text.Trim();
+        var query = _lastSearch.Trim();
         switch (_catalogAction.Value)
         {
             case AddMenu.AddMenuAction.Agent:
@@ -172,6 +215,42 @@ internal sealed class ChatAddMenuSurface : IDisposable
                 AddModeRow("Prefer Text", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.PreferText);
                 AddModeRow("Always Text", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.AlwaysText);
                 break;
+        }
+    }
+
+    private void RebuildUnifiedCatalogue()
+    {
+        var query = _lastSearch.Trim();
+        var ranked = new List<(int Score, AddMenu.AddMenuAction Action, object Item, string Label, string Description)>();
+        void Add(AddMenu.AddMenuAction action, object item, string label, string description)
+        {
+            var score = SearchScore(label, description, query);
+            if (score < int.MaxValue) ranked.Add((score, action, item, label, description));
+        }
+        Add(AddMenu.AddMenuAction.File, "upload", "Upload Files", "Attach one or more local files");
+        Add(AddMenu.AddMenuAction.MultipleResponses, "multiple-responses", "Multiple Responses", "Ask several selected models and compare their responses");
+        foreach (var item in _instructions) Add(AddMenu.AddMenuAction.Instruction, item, item.Name, item.Description);
+        foreach (var item in _capabilities) Add(AddMenu.AddMenuAction.Capability, item, item.Name, item.Description);
+        foreach (var item in _agents) Add(AddMenu.AddMenuAction.Agent, item, item.Name, item.Description);
+        foreach (var item in _apps) Add(AddMenu.AddMenuAction.App, item, item.Name, item.Description);
+        foreach (var result in ranked.OrderBy(item => item.Score).ThenBy(item => item.Label, StringComparer.OrdinalIgnoreCase).Take(24))
+        {
+            var button = MenuButton(result.Label, 284);
+            button.Accessibility.Description = result.Description;
+            if (result.Action is AddMenu.AddMenuAction.File or AddMenu.AddMenuAction.MultipleResponses)
+                button.Invoked += (_, _) => { Hide(); AddActionSelected?.Invoke(this, result.Action); };
+            else
+            {
+                var selection = new AddMenuSelection(result.Action, result.Item);
+                button.Invoked += (_, _) => SelectCatalogue(selection);
+            }
+            CatalogResults.Add(button);
+        }
+        if (ranked.Count == 0)
+        {
+            var empty = new HavenText("No close matches. Keep typing or try a shorter name.") { Level = TextLevel.Caption };
+            empty.SetValue(HavenProperties.Foreground, "TextSecondary");
+            CatalogResults.Add(empty);
         }
     }
 
@@ -244,10 +323,40 @@ internal sealed class ChatAddMenuSurface : IDisposable
         _ => "Auto"
     };
 
-    private static bool Matches(string name, string description, string query) =>
-        string.IsNullOrWhiteSpace(query)
-        || name.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || description.Contains(query, StringComparison.OrdinalIgnoreCase);
+    private static bool Matches(string name, string description, string query) => SearchScore(name, description, query) < int.MaxValue;
+
+    internal static int SearchScore(string name, string description, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return 0;
+        var needle = query.Trim().ToLowerInvariant();
+        var title = (name ?? string.Empty).ToLowerInvariant();
+        var detail = (description ?? string.Empty).ToLowerInvariant();
+        if (title == needle) return 0;
+        if (title.StartsWith(needle, StringComparison.Ordinal)) return 1;
+        if (title.Contains(needle, StringComparison.Ordinal)) return 2;
+        if (detail.Contains(needle, StringComparison.Ordinal)) return 5;
+        var words = title.Split(new[] { ' ', '-', '_', '/', '.', '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
+        var best = words.Select(word => EditDistance(word, needle)).Append(EditDistance(title, needle)).Min();
+        var tolerance = needle.Length <= 4 ? 1 : needle.Length <= 8 ? 2 : 3;
+        return best <= tolerance ? 10 + best : int.MaxValue;
+    }
+
+    private static int EditDistance(string left, string right)
+    {
+        var previous = Enumerable.Range(0, right.Length + 1).ToArray();
+        var current = new int[right.Length + 1];
+        for (var i = 1; i <= left.Length; i++)
+        {
+            current[0] = i;
+            for (var j = 1; j <= right.Length; j++)
+            {
+                var cost = left[i - 1] == right[j - 1] ? 0 : 1;
+                current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+            }
+            (previous, current) = (current, previous);
+        }
+        return previous[right.Length];
+    }
 
     private void OnDismissInvoked(object? sender, EventArgs e) => Hide();
     private void OnAttachFilesInvoked(object? sender, EventArgs e)
@@ -259,6 +368,11 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private void OnInstructionsInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.Instruction);
     private void OnCapabilitiesInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.Capability);
     private void OnAppsInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.App);
+    private void OnMultipleResponsesInvoked(object? sender, EventArgs e)
+    {
+        Hide();
+        AddActionSelected?.Invoke(this, AddMenu.AddMenuAction.MultipleResponses);
+    }
     private void OnAllowActionsInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.AllowActions);
     private void OnVisualResponsesInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.VisualResponses);
 
@@ -280,6 +394,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         InstructionsButton.Invoked -= OnInstructionsInvoked;
         CapabilitiesButton.Invoked -= OnCapabilitiesInvoked;
         AppsButton.Invoked -= OnAppsInvoked;
+        MultipleResponsesButton.Invoked -= OnMultipleResponsesInvoked;
         AllowActionsButton.Invoked -= OnAllowActionsInvoked;
         VisualResponsesButton.Invoked -= OnVisualResponsesInvoked;
         CatalogSearch.Invalidated -= OnCatalogSearchInvalidated;

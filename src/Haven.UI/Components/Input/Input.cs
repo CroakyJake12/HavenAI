@@ -77,6 +77,50 @@ public sealed class Input : HavenElement
     private int _selectionAnchor = -1;
     private readonly Stack<EditState> _undo = new();
     private readonly Stack<EditState> _redo = new();
+    private double _scrollY;
+    private double _maxScrollY;
+
+    /// <summary>When true, a multiline input may vertically centre compact one-line content while retaining multiline editing semantics.</summary>
+    public bool CenterVerticallyWhenCompact { get; set; }
+
+    /// <summary>Current internal vertical text scroll offset for capped multiline editors.</summary>
+    public double ScrollY => _scrollY;
+    public double MaxScrollY => _maxScrollY;
+
+    public bool ScrollBy(double deltaY)
+    {
+        var next = Math.Clamp(_scrollY + (double.IsFinite(deltaY) ? deltaY : 0d), 0d, _maxScrollY);
+        if (Math.Abs(next - _scrollY) < .0001d) return false;
+        _scrollY = next;
+        Invalidate();
+        return true;
+    }
+
+    internal void UpdateScrollMetrics(double contentHeight, double viewportHeight)
+    {
+        _maxScrollY = Math.Max(0d, contentHeight - Math.Max(0d, viewportHeight));
+        _scrollY = Math.Clamp(_scrollY, 0d, _maxScrollY);
+    }
+
+    internal bool EnsureVerticalRangeVisible(double top, double bottom, double viewportHeight)
+    {
+        if (_maxScrollY <= 0d)
+        {
+            if (_scrollY == 0d) return false;
+            _scrollY = 0d;
+            Invalidate();
+            return true;
+        }
+
+        var next = _scrollY;
+        if (top < next) next = top;
+        else if (bottom > next + viewportHeight) next = bottom - viewportHeight;
+        next = Math.Clamp(next, 0d, _maxScrollY);
+        if (Math.Abs(next - _scrollY) < .0001d) return false;
+        _scrollY = next;
+        Invalidate();
+        return true;
+    }
 
     public int CaretIndex => GetValue(CaretIndexProperty);
     public int SelectionAnchor => _selectionAnchor >= 0 ? NormalizeCaret(Text, _selectionAnchor) : CaretIndex;

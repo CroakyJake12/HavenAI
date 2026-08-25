@@ -19,7 +19,7 @@ public sealed class ChatHavenSceneTests
         Assert.True(scene.Instruction.Multiline);
         Assert.True(scene.Instruction.SubmitOnEnter);
         Assert.Equal("Ask Haven anything", scene.Instruction.Accessibility.AccessibleName);
-        Assert.Equal("Add to chat", scene.AddButton.Accessibility.AccessibleName);
+        Assert.Equal("Attach to chat", scene.AddButton.Accessibility.AccessibleName);
         Assert.Equal("Send message", scene.SendButton.Accessibility.AccessibleName);
         Assert.Equal("Messages", scene.Messages.Name);
     }
@@ -160,7 +160,7 @@ public sealed class ChatHavenSceneTests
 
         scene.ShowAddMenu();
         Assert.Equal(HavenVisibility.Visible, scene.AddOverlay.GetValue(HavenProperties.Visibility));
-        Assert.Equal("Manage Responses", scene.AddMenuPrefab.DescendantsAndSelf().OfType<Text>().First(text => text.Content == "Manage Responses").Content);
+        Assert.Equal("Attach to Chat", scene.AddMenuPrefab.DescendantsAndSelf().OfType<Text>().First(text => text.Content == "Attach to Chat").Content);
 
         scene.HideAddMenu();
         Assert.Equal(HavenVisibility.Collapsed, scene.AddOverlay.GetValue(HavenProperties.Visibility));
