@@ -76,10 +76,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         WireEvents();
         InitializeConnections();
         InitializeGovernance();
-<<<<<<< HEAD
         InitializeUpdates();
-=======
->>>>>>> 3c8dc78 (feat(settings): expose model governance in Settings)
         _ = RefreshModelsAsync();
         _ = RefreshDefaultTabsAsync();
         _ = RefreshExtensionsAsync();

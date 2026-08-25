@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Where: src/Haven.Android/Resources/xml/method.xml
+  What:  Input-method declaration for the Haven Keyboard IME.
+  How:   Referenced from HavenImeService via the android.view.im meta-data entry.
+         Points at the keyboard settings activity so users reach preferences from
+         the system "Set up input methods" screen.
+  Why:   Android only recognises an IME when this resource declares it.
+  Maintenance: Keep the subtype locale/mode aligned with the keyboards implemented
+         in HavenImeService.cs. settingsActivity must stay the fully qualified
+         Java name (package + class name, no C# namespace).
+-->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.cakemods.haven.HavenKeyboardSettingsActivity">
+  <subtype android:label="Haven Keyboard"
+      android:imeSubtypeLocale="en_GB"
+      android:imeSubtypeMode="keyboard"/>
+</input-method>
