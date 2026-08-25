@@ -1,4 +1,4 @@
-namespace Haven.Core;
+﻿namespace Haven.Core;
 
 /// <summary>Identifies the trusted origin of an execution trace.</summary>
 public enum ExecutionOrigin
@@ -38,7 +38,15 @@ public enum ExecutionActionType
     Steer = 22,
     Queue = 23,
     Replan = 24,
-    Resume = 25
+    Resume = 25,
+    ModelFallback = 26,
+    PermissionDenied = 27,
+    InstructionsLoaded = 28,
+    CheckpointCreated = 29,
+    CheckpointRestored = 30,
+    ContextChanged = 31,
+    JudgeEvaluated = 32,
+    UpdateStaged = 33
 }
 
 public enum ExecutionActionStatus

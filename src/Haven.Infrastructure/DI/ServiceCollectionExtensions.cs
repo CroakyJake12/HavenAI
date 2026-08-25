@@ -191,6 +191,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Haven.ModelProvider.gemini");
         services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
         services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
+        services.AddSingleton<IModelFallbackOrderStore, VersionedModelFallbackOrderStore>();
+        services.AddSingleton<IModelPersonalisationStore, VersionedModelPersonalisationStore>();
+        services.AddSingleton<IModelPermissionStore, VersionedModelPermissionStore>();
+        services.AddSingleton<ModelPersonalityService>();
+        services.AddSingleton<ModelPermissionEvaluator>();
         services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
         services.AddSingleton<ImagineGenerationCommand>();
         services.AddSingleton<RemediationCoordinator>();

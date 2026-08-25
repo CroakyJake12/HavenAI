@@ -31,7 +31,9 @@ public sealed class ChatSessionService(
     CalendarConnectionToolRuntime? calendarTools = null,
     IExecutionEventSink? executionEvents = null,
     AutonomousRecoveryService? recovery = null,
-    RemediationCoordinator? remediations = null)
+    RemediationCoordinator? remediations = null,
+    ModelPersonalityService? personalities = null,
+    ModelPermissionEvaluator? modelPermissions = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -271,6 +273,13 @@ public sealed class ChatSessionService(
             ?? model;
         etaModel = turnModel;
 
+        string? personalityDirective = null;
+        if (personalities is not null)
+        {
+            var effectivePersonality = await personalities.ResolveEffectiveAsync(turnModel.Name, cancellationToken).ConfigureAwait(false);
+            personalityDirective = ModelPersonalityPrompt.Describe(effectivePersonality);
+        }
+
         using var computerPassCandidate = computerTools.CreatePass();
         var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
                 availableCapabilities ?? capabilities,
@@ -361,7 +370,7 @@ public sealed class ChatSessionService(
         var system = BuildSystemPrompt(
             conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
-            projectContext, projectInstructions, registeredContext, computerPass is not null);
+            projectContext, projectInstructions, registeredContext, computerPass is not null, personalityDirective);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
         var toolActivities = new List<ToolActivity>();
@@ -406,6 +415,31 @@ public sealed class ChatSessionService(
                 var toolActionId = Guid.NewGuid();
                 var toolStartedAt = DateTimeOffset.UtcNow;
                 var actionParentId = activeActionId ?? parentActionId;
+
+                if (modelPermissions is not null && ModelToolPermissionMap.Map(call.Name) is { } restrictedCapability)
+                {
+                    var permissionDecision = await modelPermissions.EvaluateAsync(
+                        DescriptorForPermission(turnModel), restrictedCapability, acrossMesh: false, cancellationToken).ConfigureAwait(false);
+                    if (!permissionDecision.Allowed)
+                    {
+                        executionEvents?.TryPublish(new ExecutionEvent(
+                            Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
+                            ExecutionActionType.PermissionDenied, ExecutionActionStatus.Blocked,
+                            $"Model {turnModel.Name} is not permitted to run this capability", null,
+                            permissionDecision.Reason, call.Name, toolStartedAt, toolStartedAt, toolStartedAt));
+                        return new WorkspaceToolResult(
+                            new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '),
+                                $"Model {turnModel.Name} is restricted from this action by model permissions.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                            "Tool error: the selected model's permission policy denies this capability. Switch models in the model picker or adjust model permissions in Settings.",
+                            new ToolFailureDescriptor(
+                                "MODEL_PERMISSION_DENIED", ToolFailureKind.PermissionRequired,
+                                $"Model '{turnModel.Name}' is denied this capability by the model permission policy.",
+                                "model-permissions", "Model permissions",
+                                new RecoveryRiskAssessment(false, false, false, false, true, false, false, 1.0),
+                                Retryable: false));
+                    }
+                }
+
                 executionEvents?.TryPublish(new ExecutionEvent(
                     Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
                     ExecutionActionType.ToolCall, ExecutionActionStatus.Running, StatusForTool(call.Name),
@@ -1057,6 +1091,18 @@ public sealed class ChatSessionService(
     }
 
     /// <summary>
+    /// Builds the provider descriptor used for model-permission evaluation of the active turn model.
+    /// Provider-qualified keys ("openai:gpt-4o") are honoured so cloud rules apply to cloud models.
+    /// </summary>
+    private static ProviderModelDescriptor DescriptorForPermission(ModelDescriptor model)
+    {
+        var separator = model.Name.IndexOf(':');
+        if (separator > 0 && model.Name[..separator] is not ("ollama"))
+            return new ProviderModelDescriptor(model.Name[..separator], false, model);
+        return new ProviderModelDescriptor("ollama", true, model);
+    }
+
+    /// <summary>
     /// Builds system prompt from the currently available inputs.
     /// </summary>
     private static string BuildSystemPrompt(
@@ -1070,7 +1116,8 @@ public sealed class ChatSessionService(
         string? projectContext,
         string? projectInstructions,
         string? registeredContext,
-        bool computerUseEnabled)
+        bool computerUseEnabled,
+        string? personalityDirective = null)
     {
         var mode = conversation.Mode switch
         {
@@ -1082,6 +1129,8 @@ public sealed class ChatSessionService(
         };
         var builder = new StringBuilder(mode);
         builder.Append(" Active agent: ").Append(agentName).Append('.');
+        if (!string.IsNullOrWhiteSpace(personalityDirective))
+            builder.Append('\n').Append(personalityDirective.Trim());
         if (!string.IsNullOrWhiteSpace(agentInstructions))
             builder.Append("\nAgent instructions:\n").Append(agentInstructions.Trim());
         if (duoMode == DuoMode.PingPong)
