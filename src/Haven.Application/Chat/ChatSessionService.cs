@@ -34,7 +34,9 @@ public sealed class ChatSessionService(
     RemediationCoordinator? remediations = null,
     ModelPersonalityService? personalities = null,
     ModelPermissionEvaluator? modelPermissions = null,
-    IDefaultProviderStore? defaultProviders = null)
+    IDefaultProviderStore? defaultProviders = null,
+    CheckpointService? checkpoints = null,
+    IProjectInstructionSource? projectInstructionFiles = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -288,6 +290,26 @@ public sealed class ChatSessionService(
             providerDefaultsDirective = DefaultProviderDirectives.Describe(assignments);
         }
 
+        // Project agent-instruction files are discovered by the runtime — never left to model memory.
+        string? discoveredAgentInstructions = null;
+        if (projectInstructionFiles is not null && !string.IsNullOrWhiteSpace(workspaceRoot))
+        {
+            discoveredAgentInstructions = await ProjectAgentInstructions.LoadAsync(
+                projectInstructionFiles, workspaceRoot, null, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(discoveredAgentInstructions))
+            {
+                var instructionsActionId = Guid.NewGuid();
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, instructionsActionId, promptActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.InstructionsLoaded, ExecutionActionStatus.Completed,
+                    "Project agent instructions loaded", null,
+                    "Discovered agent.md/AGENTS.md rules are applied as execution constraints.", "agent-instructions",
+                    DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+            }
+        }
+        var effectiveProjectInstructions = string.Join("\n\n",
+            new[] { projectInstructions, discoveredAgentInstructions }.Where(item => !string.IsNullOrWhiteSpace(item)));
+
         using var computerPassCandidate = computerTools.CreatePass();
         var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
                 availableCapabilities ?? capabilities,
@@ -378,7 +400,7 @@ public sealed class ChatSessionService(
         var system = BuildSystemPrompt(
             conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
-            projectContext, projectInstructions, registeredContext, computerPass is not null, personalityDirective,
+            projectContext, effectiveProjectInstructions, registeredContext, computerPass is not null, personalityDirective,
             providerDefaultsDirective);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
@@ -412,7 +434,15 @@ public sealed class ChatSessionService(
                 if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
                     return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
                 if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+                {
+                    // A checkpoint is recorded before the first applicable mutation of this execution.
+                    if (checkpoints is not null &&
+                        ModelToolPermissionMap.Map(call.Name) == RestrictedModelCapability.EditFiles)
+                        await checkpoints.EnsureBeforeMutationAsync(
+                            execution.OperationId, conversation.Id, conversation.ContainerId,
+                            workspaceRoot, checkpoints.Mode, cancellationToken).ConfigureAwait(false);
                     return await workspaceTools.ExecuteAsync(workspaceRoot, call, token, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                }
                 return new WorkspaceToolResult(
                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
                     "Tool error: registered runtime is unavailable.");

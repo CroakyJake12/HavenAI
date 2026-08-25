@@ -195,6 +195,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModelPersonalityService>();
         services.AddSingleton<ModelPermissionEvaluator>();
         services.AddSingleton<IDefaultProviderStore, VersionedDefaultProviderStore>();
+        services.AddSingleton<CheckpointService>();
+        services.AddSingleton<ICheckpointRepository, SqliteCheckpointRepository>();
+        services.AddSingleton<ICheckpointRestorer, WorkspaceCheckpointRestorer>();
+        services.AddSingleton<IProjectInstructionSource, ProjectInstructionFileSource>();
         services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
         services.AddSingleton<ImagineGenerationCommand>();
         services.AddSingleton<RemediationCoordinator>();
