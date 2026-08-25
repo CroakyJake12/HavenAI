@@ -37,7 +37,7 @@ public sealed class NativeAutomationsPageTests
         scene.DeleteWorkflowRequested += value => delete = value;
         scene.SetWorkflowEnabledRequested += (value, state) => enabled = (value, state);
 
-        Invoke(scene.Root, "Automations.Tab.Workflows");
+        Invoke(scene.Root, "Automations.Tab.Library");
         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Run");
         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Test");
         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Edit");
@@ -119,7 +119,7 @@ public sealed class NativeAutomationsPageTests
             Assert.Contains(persisted.Nodes, node => node.Id == triggerId);
             Assert.Contains(persisted.Nodes, node => node.Id == emitId);
 
-            Invoke(page.Scene.Root, "Automations.Tab.Workflows");
+            Invoke(page.Scene.Root, "Automations.Tab.Library");
             await WaitUntilAsync(() => page.Scene.Root.DescendantsAndSelf().Any(element => element.Name == $"Automations.Workflow.{saved.Id:N}.Edit"));
             Invoke(page.Scene.Root, $"Automations.Workflow.{saved.Id:N}.Edit");
 
@@ -156,7 +156,7 @@ public sealed class NativeAutomationsPageTests
         {
             window.Show();
             await WaitUntilAsync(() => page.Scene.StatusText.Content.Contains("1 reusable workflow", StringComparison.Ordinal));
-            Invoke(page.Scene.Root, "Automations.Tab.Workflows");
+            Invoke(page.Scene.Root, "Automations.Tab.Library");
             Invoke(page.Scene.Root, $"Automations.Workflow.{workflowId:N}.Enabled");
 
             await WaitUntilAsync(() => tasks.Items.Single().IsEnabled == false && automations.Items.Single().IsEnabled == false);

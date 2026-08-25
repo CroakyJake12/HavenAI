@@ -18,7 +18,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
     [
         new("home", "Settings", "Search Haven settings or choose a category.", ["settings", "home"]),
         new("models", "AI & Models", "Local models, defaults, residency, installation and removal.", ["ai", "model", "models", "ollama", "install", "download", "residency", "effort", "fallback", "priority", "personality", "nickname", "override", "governance", "provider"]),
-        new("appearance", "Personalisation", "Default tab, colour appearance and accessibility preferences.", ["personalisation", "default", "tab", "appearance", "theme", "dark", "bright", "motion", "animation", "accessibility"]),
+        new("appearance", "Personalisation", "Default tab, colour appearance and accessibility preferences.", ["personalisation", "default", "tab", "appearance", "theme", "dark", "bright", "font", "accent", "colour", "color", "avatar", "profile", "picture", "motion", "animation", "accessibility"]),
         new("apps", "Chat & Apps", "Chat behaviour, context management and app assistance preferences.", ["chat", "apps", "agentic", "confidence", "compact", "browser", "auto"]),
         new("permissions", "Permissions & Sandboxing", "File, command, browser and device-use permission defaults.", ["permission", "permissions", "sandbox", "file", "command", "browser", "device", "computer", "tool"]),
         new("integrations", "Integrations", "Provider connections and external model integrations.", ["integration", "provider", "connection", "api", "key", "cloud"]),

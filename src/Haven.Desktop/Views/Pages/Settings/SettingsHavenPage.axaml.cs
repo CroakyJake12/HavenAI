@@ -103,6 +103,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.AppearanceSelect.SelectionChanged += (_, _) => ApplyAppearance();
         _route.DefaultTabSelect.SelectionChanged += (_, _) => SaveDefaultTab();
         _route.ThemeSelect.SelectionChanged += (_, _) => ApplyThemeChoice();
+        _route.FontSelect.SelectionChanged += (_, _) => ApplyFontChoice();
         _route.AccentOverrideToggle.CheckedChanged += (_, _) => ApplyAccentOverrideToggle();
         foreach (var swatch in _route.AccentSwatchButtons)
         {
