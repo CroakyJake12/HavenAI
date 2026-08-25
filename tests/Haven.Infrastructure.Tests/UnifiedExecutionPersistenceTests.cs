@@ -9,11 +9,11 @@ public sealed class UnifiedExecutionPersistenceTests : IDisposable
     private readonly TestPaths _paths = new();
 
     [Fact]
-    public async Task Migration_22_round_trips_graph_feedback_session_notifications_and_sources()
+    public async Task Migration_23_round_trips_graph_feedback_session_notifications_and_sources()
     {
         var database = new SqliteDatabase(_paths);
         await database.InitializeAsync(CancellationToken.None);
-        Assert.Equal(22, Migrations.LatestVersion);
+        Assert.Equal(23, Migrations.LatestVersion);
         await using (var connection = await database.OpenAsync(CancellationToken.None))
         {
             await using var version = connection.CreateCommand();

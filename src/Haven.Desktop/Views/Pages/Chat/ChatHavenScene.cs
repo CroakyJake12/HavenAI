@@ -41,7 +41,7 @@ internal sealed record ChatSceneContextEntry(Guid EntryId, string CategoryLabel,
 /// Canonical Haven-native Chat presentation. App/domain state remains owned by NewChatPage and application services;
 /// this class only projects that state into Prefab/DynamicUI scene elements and emits semantic UI intent.
 /// </summary>
-internal sealed class ChatHavenScene : IDisposable
+internal sealed partial class ChatHavenScene : IDisposable
 {
     private readonly HavenPrefabCatalog _prefabs;
     private readonly HavenDynamicUITemplateCatalog _templates;

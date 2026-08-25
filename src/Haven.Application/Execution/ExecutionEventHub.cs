@@ -132,8 +132,11 @@ public sealed class ExecutionEventHub : IExecutionEventSink, IAsyncDisposable
         };
     }
 
+    private int _disposed;
+
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _channel.Writer.TryComplete();
         _lifetime.CancelAfter(TimeSpan.FromSeconds(2));
         try { await _collector.ConfigureAwait(false); } catch (OperationCanceledException) { }

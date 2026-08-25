@@ -189,7 +189,7 @@ internal static class KnowledgeContentSafety
 
 public sealed class KnowledgeLibraryService(
     ISqliteConnectionFactory factory,
-    IRetrievalIndexService retrieval) : IKnowledgeLibrary
+    IRetrievalIndexService retrieval) : IKnowledgeLibrary, IMemoryQuerySource
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -321,6 +321,35 @@ public sealed class KnowledgeLibraryService(
     {
         var records = await SearchMetadataAsync(null, null, cancellationToken).ConfigureAwait(false);
         return records.FirstOrDefault(record => record.Id == id);
+    }
+
+    public async Task<IReadOnlyList<KnowledgeRecord>> GetActiveLearnMeAsync(int limit, CancellationToken cancellationToken)
+    {
+        if (limit < 1) return [];
+        await KnowledgeSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT r.id,r.category,r.topic,r.title,r.summary,r.privacy_class,r.confidence,r.is_pinned,
+                   r.created_at,r.updated_at,r.expires_at,r.learned_because,r.sources_json,
+                   COALESCE(d.freshness,0),d.last_confirmed_at,COALESCE(d.scope,'global'),
+                   COALESCE(d.status,0),COALESCE(d.origin,0),d.user_correction,d.supersedes_id
+            FROM knowledge_records r
+            LEFT JOIN knowledge_record_details d ON d.id=r.id
+            WHERE r.category=$category
+              AND COALESCE(d.status,0) IN (0,1)
+              AND NOT (r.expires_at IS NOT NULL AND r.expires_at <= $now AND COALESCE(d.freshness,0) <> 0)
+            ORDER BY r.is_pinned DESC,r.confidence DESC,COALESCE(d.freshness,0) DESC,r.updated_at DESC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$category", (int)KnowledgeCategory.LearnMe);
+        command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+        command.Parameters.AddWithValue("$limit", limit);
+        var result = new List<KnowledgeRecord>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            result.Add(ReadRecord(reader));
+        return result;
     }
 
     public async Task<bool> SetPinnedAsync(Guid id, bool pinned, CancellationToken cancellationToken)

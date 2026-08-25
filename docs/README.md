@@ -7,6 +7,33 @@ Avalonia-backed host. All AI inference is local-first (Ollama), data stays on
 device by default, and the product is organised around **Apps** (Chat, Study,
 Tasks, Studio, Browser, Plan, Imagine, and more).
 
+## Alpha B update pass
+
+This branch added shared model governance, action default-provider resolution,
+agentic checkpoints, native-plugin/MCP tool runtimes, dual-model evaluation,
+context/memory gating, the Maps provider stack and source-aware updates. New
+canonical material:
+
+| Topic | Read |
+|---|---|
+| System index rows for governance, actions, safety, extensibility, evaluation, memory, maps, updates, spaces | [architecture/system-map.md](architecture/system-map.md) |
+| Migration 23 (`agent_checkpoints`, `workspace_versions.haven_sequence`) and versioned `settings.json` keys (`models.*`, `actions.default-providers.v1`, `updates.preferences.v1`) | [architecture/state-and-persistence.md](architecture/state-and-persistence.md) |
+| How to add a governance store or a tool runtime (`ToolRuntimeKind.Plugin` precedent) | [development/adding-a-feature.md](development/adding-a-feature.md) |
+| Contract notes: reuse shared governance stores; Maps attribution obligations; checkpoint-based recovery | `AGENTS.md` |
+
+Smaller branch behaviours and known gaps, stated honestly: Write's
+Document/Continuous layouts are pre-existing (`NotesLayoutMode`); read-aloud
+uses a sentence-boundary chunk queue with pause = stop-with-position +
+re-speak, and exposes no speed control because `ISpeechOutputService` has none
+(`NotesReadAloudController`); the Android keyboard locks AI actions out of
+secure fields and ships AI-off-by-default; external CLI agent adapters remain
+unimplemented; Background Learning is still store + scheduler awaiting
+producers; Mesh is unchanged and clipboard transfer stays a manual push to a
+trusted peer (no background sync); MCP stdio configuration exists on
+`McpConnectionConfiguration` programmatically, but Settings exposes Streamable
+HTTP connection presets only; the checkpoint policy mode is engine-owned and
+not yet a persisted setting.
+
 ## Start here
 
 | Question | Read |

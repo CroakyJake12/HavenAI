@@ -83,6 +83,8 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<TerminalCommandActivityHub>();
         collection.AddSingleton<WorkspaceToolRuntime>();
         collection.AddSingleton<ComputerToolRuntime>();
+        collection.AddSingleton(provider => new DualModelService(provider.GetRequiredService<IOllamaClient>(), provider.GetRequiredService<IExecutionEventSink>()));
+        collection.AddSingleton(provider => new JudgeService(new TrainingJudgeAdapter(provider.GetRequiredService<IOllamaClient>()), provider.GetRequiredService<IExecutionEventSink>()));
         collection.AddSingleton<ChatSessionService>(provider => new ChatSessionService(
             provider.GetRequiredService<IConversationRepository>(),
             provider.GetRequiredService<ProviderRoutingModelClient>(),
@@ -102,7 +104,8 @@ public sealed partial class App : Avalonia.Application
             modelPermissions: provider.GetRequiredService<ModelPermissionEvaluator>(),
             defaultProviders: provider.GetRequiredService<IDefaultProviderStore>(),
             checkpoints: provider.GetRequiredService<CheckpointService>(),
-            projectInstructionFiles: provider.GetRequiredService<IProjectInstructionSource>()));
+            projectInstructionFiles: provider.GetRequiredService<IProjectInstructionSource>(),
+            memorySource: provider.GetRequiredService<IMemoryQuerySource>()));
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<Services.AvatarStore>();
         collection.AddSingleton<Services.OllamaWakeService>();

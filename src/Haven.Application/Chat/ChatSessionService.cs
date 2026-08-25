@@ -37,7 +37,8 @@ public sealed class ChatSessionService(
     ModelPermissionEvaluator? modelPermissions = null,
     IDefaultProviderStore? defaultProviders = null,
     CheckpointService? checkpoints = null,
-    IProjectInstructionSource? projectInstructionFiles = null)
+    IProjectInstructionSource? projectInstructionFiles = null,
+    IMemoryQuerySource? memorySource = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -278,10 +279,28 @@ public sealed class ChatSessionService(
         etaModel = turnModel;
 
         string? personalityDirective = null;
+        var memoryReferences = PersonalityLevel.Moderate;
         if (personalities is not null)
         {
             var effectivePersonality = await personalities.ResolveEffectiveAsync(turnModel.Name, cancellationToken).ConfigureAwait(false);
             personalityDirective = ModelPersonalityPrompt.Describe(effectivePersonality);
+            memoryReferences = effectivePersonality.MemoryReferences;
+        }
+
+        if (memorySource is not null)
+        {
+            var remembered = await memorySource.GetActiveLearnMeAsync(MemoryInjection.MaximumRecords, cancellationToken).ConfigureAwait(false);
+            var selectedMemories = MemoryInjection.SelectForLevel(memoryReferences, remembered);
+            if (MemoryInjection.ShouldInclude(memoryReferences, selectedMemories.Count))
+            {
+                var memoryDirective = MemoryInjection.BuildDirective(selectedMemories);
+                if (!string.IsNullOrWhiteSpace(memoryDirective))
+                {
+                    personalityDirective = string.IsNullOrWhiteSpace(personalityDirective)
+                        ? memoryDirective
+                        : personalityDirective + "\n\n" + memoryDirective;
+                }
+            }
         }
 
         string? providerDefaultsDirective = null;

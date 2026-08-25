@@ -152,6 +152,12 @@ public sealed class BuiltInModeSeed
             "spaces", "Spaces", "Organise chats, files and layouts into named Spaces", "folder",
             HavenMode.Chat, "[\"Spaces\"]", "[]", "[]", "[]", "Act as Haven Spaces. Help the user organise conversations, files and layouts into named Spaces. Opening a Space exposes its conversations; New Chat while scoped to a Space creates a Space-associated conversation. Never claim a conversation joined a Space without a confirmed membership change.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"productivity\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000023"),
+            "maps", "Maps", "Find places, view OpenStreetMap maps, get directions and save places", "map",
+            HavenMode.Chat, "[\"Maps\"]", "[]", "[]", "[]", "Act as Haven Maps. Answer place, map and direction questions only from provider-backed OpenStreetMap and OSRM results, keep the required OpenStreetMap attribution visible on the map surface, and never invent places, coordinates or routes when the providers are unavailable.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"travel\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }
