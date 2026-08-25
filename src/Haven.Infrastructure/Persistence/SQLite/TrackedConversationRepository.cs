@@ -151,6 +151,12 @@ public sealed class UsageTrackingConversationRepository(
     /// Performs add context entry asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken) => inner.AddContextEntryAsync(entry, cancellationToken);
+
+    /// <summary>
+    /// Deletes one context entry through the inner store; protected compact summaries remain refused there.
+    /// </summary>
+    public Task<bool> DeleteContextEntryAsync(Guid conversationId, Guid entryId, CancellationToken cancellationToken) =>
+        inner.DeleteContextEntryAsync(conversationId, entryId, cancellationToken);
     /// <summary>
     /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>

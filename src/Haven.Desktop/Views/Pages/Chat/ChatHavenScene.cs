@@ -33,6 +33,11 @@ internal sealed record ChatSceneMessage(
     IReadOnlyList<ToolActivity>? ToolActivities = null);
 
 /// <summary>
+/// One persisted conversation context row projected into the collapsible Context card.
+/// </summary>
+internal sealed record ChatSceneContextEntry(Guid EntryId, string CategoryLabel, string Title, string Preview, bool IsRemovable);
+
+/// <summary>
 /// Canonical Haven-native Chat presentation. App/domain state remains owned by NewChatPage and application services;
 /// this class only projects that state into Prefab/DynamicUI scene elements and emits semantic UI intent.
 /// </summary>
@@ -49,6 +54,8 @@ internal sealed class ChatHavenScene : IDisposable
     private PopupMenu? _activeMessagePopup;
     private bool _isSending;
     private bool _safetyLocked;
+    private bool _isContextExpanded;
+    private bool _contextDismissed;
     private bool _disposed;
 
     public ChatHavenScene()
@@ -71,6 +78,16 @@ internal sealed class ChatHavenScene : IDisposable
         NewTask = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "NewTask");
         TaskHistory = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "TaskHistory");
         ResolveProblems = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ResolveProblems");
+        ContextCard = Root.DescendantsAndSelf().OfType<Container>().Single(element => element.Name == "ContextCard");
+        ContextToggle = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ContextToggle");
+        ContextSummaryText = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "ContextSummary");
+        ContextClose = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ContextClose");
+        ContextBody = (Container)Root.DescendantsAndSelf().Single(element => element.Name == "ContextBody");
+
+        ContextCard.SetValue(HavenProperties.Background, "SurfaceRaised");
+        ContextCard.SetValue(HavenProperties.BorderColor, "Border");
+        ContextCard.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        ContextCard.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(12)));
 
         AddMenuPrefab = _prefabs.Create("ChatAddMenu", "Chat-AddMenu");
         AddMenuPrefab.SetValue(HavenProperties.Width, HavenLength.Percent(100));
@@ -83,6 +100,8 @@ internal sealed class ChatHavenScene : IDisposable
         AddButton.Invoked += OnAddInvoked;
         SendButton.Invoked += OnSendInvoked;
         ResolveProblems.Invoked += OnResolveInvoked;
+        ContextToggle.Invoked += OnContextToggleInvoked;
+        ContextClose.Invoked += OnContextCloseInvoked;
         ManageAttachments.Invoked += (_, _) => ManageAttachmentsRequested?.Invoke(this, EventArgs.Empty);
         NewTask.Invoked += (_, _) => NewTaskRequested?.Invoke(this, EventArgs.Empty);
         TaskHistory.Invoked += (_, _) => TaskHistoryRequested?.Invoke(this, EventArgs.Empty);
@@ -107,6 +126,11 @@ internal sealed class ChatHavenScene : IDisposable
     public HavenButton NewTask { get; }
     public HavenButton TaskHistory { get; }
     public HavenButton ResolveProblems { get; }
+    public Container ContextCard { get; }
+    public HavenButton ContextToggle { get; }
+    public HavenText ContextSummaryText { get; }
+    public HavenButton ContextClose { get; }
+    public Container ContextBody { get; }
     public Prefab AddMenuPrefab { get; }
     public Container AddOverlay => _addMenu.Overlay;
     public HavenButton DismissAddButton => _addMenu.DismissButton;
@@ -120,10 +144,15 @@ internal sealed class ChatHavenScene : IDisposable
     public event EventHandler? ManageAttachmentsRequested;
     public event EventHandler? NewTaskRequested;
     public event EventHandler? TaskHistoryRequested;
+    public event EventHandler? ContextDismissRequested;
+    public event EventHandler<Guid>? ContextRemoveRequested;
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
     public event EventHandler<ChatMessageActionRequest>? MessageActionRequested;
     public event EventHandler<ChatMarkdownCodeActionRequest>? MarkdownCodeActionRequested;
+
+    /// <summary>Gets a value indicating whether the user dismissed the Context card in this session; callers use it to avoid forcing it open again.</summary>
+    internal bool ContextDismissed => _contextDismissed;
 
     public void SetComposerPlaceholder(string value) => Instruction.Placeholder = value;
 
@@ -163,6 +192,91 @@ internal sealed class ChatHavenScene : IDisposable
 
     public void SetTaskMode(bool enabled) =>
         TaskActions.SetValue(HavenProperties.Visibility, enabled ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+
+    /// <summary>
+    /// Updates the one-line context summary shown on the Context card header; callers label token estimates clearly.
+    /// </summary>
+    public void SetContextSummary(string summary)
+    {
+        var text = summary ?? string.Empty;
+        ContextSummaryText.Content = text;
+        ContextSummaryText.SetValue(HavenProperties.Visibility, string.IsNullOrWhiteSpace(text) ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        ContextToggle.Accessibility.AccessibleName = string.IsNullOrWhiteSpace(text)
+            ? "Conversation context"
+            : $"Conversation context: {text}";
+    }
+
+    /// <summary>
+    /// Expands or collapses the scrollable context entry list while keeping the header reachable.
+    /// </summary>
+    public void SetContextExpanded(bool expanded)
+    {
+        _isContextExpanded = expanded;
+        ContextBody.SetValue(HavenProperties.Visibility, expanded ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        ContextToggle.Content = expanded ? "Hide context" : "Show context";
+        ContextToggle.Accessibility.AccessibleName = expanded
+            ? "Hide conversation context details"
+            : "Show conversation context details";
+    }
+
+    /// <summary>
+    /// Rebuilds the Context card from the current persisted rows; the card stays hidden when the conversation has none.
+    /// </summary>
+    public void SetContextEntries(string summaryLine, IReadOnlyList<ChatSceneContextEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        _contextDismissed = false;
+        SetContextSummary(summaryLine);
+        foreach (var child in ContextBody.Children.ToArray()) ContextBody.Remove(child);
+        foreach (var entry in entries) ContextBody.Add(CreateContextRow(entry));
+        var visible = entries.Count > 0;
+        ContextCard.SetValue(HavenProperties.Visibility, visible ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        if (!visible) return;
+        SetContextExpanded(_isContextExpanded);
+    }
+
+    private Container CreateContextRow(ChatSceneContextEntry entry)
+    {
+        var row = new Container { Layout = HavenLayout.Horizontal, Name = "ContextEntryRow" };
+        row.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        row.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        var textColumn = new Container { Layout = HavenLayout.Vertical, Name = "ContextEntryText" };
+        textColumn.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        textColumn.SetValue(HavenProperties.Gap, HavenLength.Px(2));
+        var category = new HavenText { Content = entry.CategoryLabel };
+        category.SetValue(HavenProperties.FontSize, 11d);
+        category.SetValue(HavenProperties.Foreground, "TextSecondary");
+        category.Accessibility.AccessibleName = $"{entry.CategoryLabel}: {entry.Title}";
+        textColumn.Add(category);
+        if (!string.IsNullOrWhiteSpace(entry.Preview))
+        {
+            var preview = new HavenText { Content = entry.Preview };
+            preview.SetValue(HavenProperties.FontSize, 11d);
+            preview.SetValue(HavenProperties.Foreground, "TextSoft");
+            textColumn.Add(preview);
+        }
+        row.Add(textColumn);
+        if (entry.IsRemovable)
+        {
+            var remove = new HavenButton { Content = "Remove", Variant = ButtonVariant.Ghost };
+            remove.SetValue(HavenProperties.MinHeight, HavenLength.Px(28));
+            remove.SetValue(HavenProperties.FontSize, 12d);
+            remove.Accessibility.AccessibleName = $"Remove {entry.CategoryLabel}: {entry.Title}";
+            remove.Invoked += (_, _) => ContextRemoveRequested?.Invoke(this, entry.EntryId);
+            row.Add(remove);
+        }
+        return row;
+    }
+
+    private void OnContextToggleInvoked(object? sender, EventArgs e) => SetContextExpanded(!_isContextExpanded);
+
+    private void OnContextCloseInvoked(object? sender, EventArgs e)
+    {
+        _contextDismissed = true;
+        SetContextExpanded(false);
+        ContextCard.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        ContextDismissRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public void SetHasMessages(bool hasMessages)
     {
@@ -577,6 +691,14 @@ internal sealed class ChatHavenScene : IDisposable
                   <DynamicUIRuntime Name="Messages" Width="100%" MaxWidth="980px" HorizontalAlignment="Center" />
                 </Container>
                 <Container Name="Footer" Row="1" Layout="Vertical" Width="100%" MaxWidth="900px" HorizontalAlignment="Center" Gap="7px">
+                  <Container Name="ContextCard" Layout="Vertical" Width="100%" HorizontalAlignment="Center" Gap="6px" Padding="12px 14px" Visibility="Collapsed">
+                    <Container Name="ContextHeaderRow" Layout="Horizontal" Width="100%" Gap="8px">
+                      <Button Name="ContextToggle" Variant="Ghost" Content="Show context" MinHeight="30px" />
+                      <Text Name="ContextSummary" Content="" FontSize="11" Foreground="TextSecondary" VerticalAlignment="Center" Visibility="Collapsed" />
+                      <Button Name="ContextClose" Variant="Ghost" Content="Close" MinHeight="30px" />
+                    </Container>
+                    <Container Name="ContextBody" Layout="Vertical" Width="100%" MaxHeight="260px" Overflow="Scroll" Clip="true" Gap="4px" Visibility="Collapsed" />
+                  </Container>
                   <Container Name="TaskActions" Layout="Horizontal" HorizontalAlignment="Center" Gap="6px" Visibility="Collapsed">
                     <Button Name="NewTask" Variant="Ghost" Content="New task" MinHeight="34px" />
                     <Button Name="TaskHistory" Variant="Ghost" Content="Task history" MinHeight="34px" />
@@ -604,6 +726,8 @@ internal sealed class ChatHavenScene : IDisposable
         AddButton.Invoked -= OnAddInvoked;
         SendButton.Invoked -= OnSendInvoked;
         ResolveProblems.Invoked -= OnResolveInvoked;
+        ContextToggle.Invoked -= OnContextToggleInvoked;
+        ContextClose.Invoked -= OnContextCloseInvoked;
         _addMenu.AddActionSelected -= OnSharedAddActionSelected;
         _addMenu.CatalogItemSelected -= OnSharedCatalogItemSelected;
         _addMenu.Dispose();

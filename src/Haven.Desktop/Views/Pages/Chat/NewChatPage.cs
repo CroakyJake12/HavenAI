@@ -11,6 +11,7 @@ using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.HavenUI.GenerativeUi;
 using Haven.Desktop.Views.Shell.TopRail;
+using Haven.Desktop.ViewModels;
 using Haven.UI;
 using Haven.UI.Components;
 
@@ -401,6 +402,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _redoMessages.Clear();
         RefreshMessages();
         _scene.SetStatus($"Compacted {compactable.Length} older messages into a durable summary.");
+        await RefreshContextEntriesAsync();
     }
 
     public void StartFreshConversation(Guid? chatGroupId = null)
@@ -457,6 +459,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
         await RefreshSafetyStateAsync();
         RefreshMessages();
+        await RefreshContextEntriesAsync();
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
         FocusComposer();
     }
@@ -684,6 +687,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         };
         _scene.MessageActionRequested += OnMessageActionRequested;
         _scene.MarkdownCodeActionRequested += OnMarkdownCodeActionRequested;
+        _scene.ContextRemoveRequested += async (_, entryId) => await RemoveContextEntryAsync(entryId);
         Scene.InputSubmitted += OnInputSubmitted;
         Scene.PointerPressedOutside += _scene.HideAddMenu;
     }
@@ -1448,6 +1452,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _scene.SetStatus(null);
         RefreshAttachmentStatus();
         RefreshResponseControls();
+        _ = RefreshContextEntriesAsync();
         RefreshMessages();
     }
 
@@ -1489,6 +1494,90 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (_taskAttachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _taskAttachments.Capabilities.Select(item => item.Name)));
         if (_taskAttachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _taskAttachments.Files.Select(Path.GetFileName)));
         _scene.SetAttachmentStatus(string.Join("  â€¢  ", parts));
+    }
+
+    /// <summary>
+    /// Reloads the persisted context rows for the active conversation into the scene Context card,
+    /// using the same conversation_context source that registered-context injection reads.
+    /// </summary>
+    private async Task RefreshContextEntriesAsync()
+    {
+        var conversationId = _conversation.Id;
+        IReadOnlyList<ConversationContextEntry> entries = [];
+        try
+        {
+            if (!_conversation.IsTemporary)
+                entries = await _conversations.GetContextEntriesAsync(conversationId, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            if (_conversation.Id == conversationId)
+                _scene.SetStatus("Context entries could not be loaded: " + exception.Message);
+            return;
+        }
+        if (_conversation.Id != conversationId || _disposed) return;
+        var mapped = entries.Select(entry => new ChatSceneContextEntry(
+            entry.Id,
+            ContextEntryViewModel.CategoryLabelFor(entry.Kind),
+            entry.Title,
+            TruncatePreview(entry.Content),
+            entry.Kind != ContextEntryKind.CompactSummary)).ToArray();
+        _scene.SetContextEntries(BuildContextSummaryLine(entries), mapped);
+    }
+
+    /// <summary>
+    /// Deletes one removable persisted context row; protected compact summaries are refused with an explanation.
+    /// </summary>
+    private async Task RemoveContextEntryAsync(Guid entryId)
+    {
+        if (_conversation.IsTemporary) return;
+        var conversationId = _conversation.Id;
+        bool removed;
+        try
+        {
+            removed = await _conversations.DeleteContextEntryAsync(conversationId, entryId, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            if (_conversation.Id == conversationId)
+                _scene.SetStatus("That context entry could not be removed: " + exception.Message);
+            return;
+        }
+        if (_conversation.Id != conversationId || _disposed) return;
+        if (!removed)
+        {
+            var remaining = await _conversations.GetContextEntriesAsync(conversationId, CancellationToken.None);
+            if (remaining.Any(entry => entry.Id == entryId && entry.Kind == ContextEntryKind.CompactSummary))
+                _scene.SetStatus("Compact summaries cannot be removed individually.");
+            else
+                _scene.SetStatus("That context entry is no longer available.");
+            return;
+        }
+        await RefreshContextEntriesAsync();
+        _scene.SetStatus("Context entry removed from this conversation.");
+    }
+
+    /// <summary>
+    /// Builds the estimated usage line for the Context card header from the same character estimate used elsewhere.
+    /// </summary>
+    private string BuildContextSummaryLine(IReadOnlyList<ConversationContextEntry> entries)
+    {
+        var characters = _messages.Sum(message => message.Content.Length) +
+                         entries.Sum(entry => entry.Content.Length + entry.Evidence.Length) +
+                         _activeInstructions.Sum(item => item.Instructions.Length) +
+                         _attachedContext.Values.Sum(value => value.Length);
+        var tokens = Math.Max(0, (int)Math.Ceiling(characters / 3.7d));
+        var limit = Math.Max(1, _preferences.GenerationOptions.ContextLimit);
+        var percent = Math.Clamp((int)Math.Round(tokens * 100d / limit), 0, 100);
+        var count = entries.Count;
+        return $"{count} context entr{(count == 1 ? "y" : "ies")} · estimated {tokens:N0} / {limit:N0} tokens ({percent}%)";
+    }
+
+    private static string TruncatePreview(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return string.Empty;
+        var firstLine = content.Split('\n', 2)[0].Trim();
+        return firstLine.Length <= 160 ? firstLine : firstLine[..157] + "…";
     }
 
     private IReadOnlyList<ActiveCapability> ActiveCapabilitiesForCurrentChat()

@@ -1326,7 +1326,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "browse");
         if (existing is not null) { SelectedTab = existing; return; }
-        var page = new BrowserPage(_bus, _browser, _browserData, _ollama, _preferences);
+        var page = new BrowserPage(_bus, _browser, _browserData, _ollama, _preferences,
+            App.Services?.GetService<NotesReadAloudController>());
         AddOrSelectTab("browse", "Browse", page, true);
     }
 

@@ -76,6 +76,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         WireEvents();
         InitializeConnections();
         InitializeGovernance();
+        InitializeUpdates();
         _ = RefreshModelsAsync();
         _ = RefreshDefaultTabsAsync();
         _ = RefreshExtensionsAsync();
@@ -896,6 +897,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _disposed = true;
         _installCancellation?.Cancel();
         _lifetime.Cancel();
+        DetachUpdates();
         _installCancellation?.Dispose();
         _lifetime.Dispose();
         _route.Dispose();
