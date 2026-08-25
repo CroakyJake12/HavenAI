@@ -153,7 +153,7 @@ public sealed class ChatSidebarHavenSceneTests
         Guid? requestedFile = null;
         scene.FileRequested += (_, id) => requestedFile = id;
 
-        Assert.Equal("Chat", scene.SidebarTitle.Content);
+        Assert.Equal("Chat", scene.SpacePicker.Content);
         Assert.Equal(HavenVisibility.Collapsed, scene.Search.GetValue(HavenProperties.Visibility));
         Assert.Equal("Search chats, groups and files", scene.SearchToggle.Accessibility.AccessibleName);
         Assert.Equal(HavenLength.Px(34), scene.Search.GetValue(HavenProperties.Height));
@@ -177,7 +177,7 @@ public sealed class ChatSidebarHavenSceneTests
         Assert.Equal(fileId, requestedFile);
 
         scene.SetMode(HavenMode.Study);
-        Assert.Equal("Study", scene.SidebarTitle.Content);
+        Assert.Equal("Study", scene.SpacePicker.Content);
         Assert.Equal(HavenVisibility.Collapsed, scene.FilesHeading.GetValue(HavenProperties.Visibility));
     }
 

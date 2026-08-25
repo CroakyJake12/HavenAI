@@ -3,6 +3,7 @@ namespace Haven.Application;
 public sealed class SpaceRegistry
 {
     private const string SettingsKey = "spaces.registry";
+    private const string CurrentSpaceSettingsKey = "spaces.current";
     private const int CurrentVersion = 1;
     private readonly IVersionedSettingsStore _settings;
     private readonly Func<DateTimeOffset> _clock;
@@ -91,6 +92,36 @@ public sealed class SpaceRegistry
                 Files = updated.Files ?? []
             };
         }, cancellationToken);
+    }
+
+    /// <summary>Returns the Space the shell is currently scoped to, or null for unscoped Chat.</summary>
+    public async Task<Guid?> GetCurrentSpaceIdAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var value = await _settings.GetAsync<string>(CurrentSpaceSettingsKey, cancellationToken).ConfigureAwait(false);
+            return Guid.TryParse(value, out var id) ? id : null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Persists the Space the shell is scoped to; null returns to unscoped Chat.</summary>
+    public async Task SetCurrentSpaceIdAsync(Guid? spaceId, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (spaceId is { } id) await _settings.SetAsync(CurrentSpaceSettingsKey, id.ToString(), cancellationToken).ConfigureAwait(false);
+            else await _settings.RemoveAsync(CurrentSpaceSettingsKey, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public async Task<SpaceDefinition> ForkAsync(Guid id, string? name = null, CancellationToken cancellationToken = default)

@@ -20,6 +20,7 @@ internal enum ChatSidebarConversationAction
     TogglePin,
     ToggleRead,
     Move,
+    MoveToSpace,
     Archive,
     Delete
 }
@@ -63,6 +64,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private IReadOnlyList<ChatSidebarFileEntry> _fileEntries = [];
     private PopupMenu? _activePopup;
     private HavenMode _mode = HavenMode.Chat;
+    private string? _spaceName;
     private bool _disposed;
 
     public ChatSidebarHavenScene()
@@ -71,7 +73,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         Root = BuildRoot();
         _dynamicUi = new DynamicUI(Root, _templates);
 
-        SidebarTitle = Get<HavenText>("SidebarTitle");
+        SpacePicker = Get<HavenButton>("SpacePicker");
         SearchToggle = Get<HavenButton>("SearchToggle");
         Search = Get<Input>("Search");
         PinnedHeading = Get<HavenText>("PinnedHeading");
@@ -90,6 +92,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         Status = Get<HavenText>("Status");
 
         SearchToggle.Invoked += OnSearchToggleInvoked;
+        SpacePicker.Invoked += (_, _) => SpacePickerRequested?.Invoke(this, EventArgs.Empty);
         Search.TextChanged += OnSearchTextChanged;
         NewChat.Invoked += OnNewChatInvoked;
         NewGroup.Invoked += OnNewGroupInvoked;
@@ -97,7 +100,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     }
 
     public Page Root { get; }
-    public HavenText SidebarTitle { get; }
+    public HavenButton SpacePicker { get; }
     public HavenButton SearchToggle { get; }
     public Input Search { get; }
     public HavenText PinnedHeading { get; }
@@ -118,6 +121,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     public event EventHandler<string>? SearchChanged;
     public event EventHandler? NewChatRequested;
     public event EventHandler? NewGroupRequested;
+    public event EventHandler? SpacePickerRequested;
     public event EventHandler<ChatSidebarConversationRequest>? ConversationActionRequested;
     public event EventHandler<ChatSidebarGroupRequest>? GroupActionRequested;
     public event EventHandler<Guid>? FileRequested;
@@ -126,17 +130,18 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     {
         _mode = mode;
         var modeName = ModeName(mode);
-        SidebarTitle.Content = modeName;
+        SpacePicker.Content = _spaceName ?? modeName;
+        SpacePicker.Accessibility.AccessibleName = "Current Space selector";
         SearchToggle.Accessibility.AccessibleName = mode == HavenMode.Chat
             ? "Search chats, groups and files"
             : $"Search {modeName}";
         GroupsHeading.Content = GroupName(mode, plural: true);
-        ChatsHeading.Content = mode switch
+        ChatsHeading.Content = _spaceName ?? (mode switch
         {
             HavenMode.Study => "Study Chats",
             HavenMode.Tasks => "Task Chats",
             _ => "Chats"
-        };
+        });
         Search.Placeholder = mode == HavenMode.Chat ? "Search chats, groups and files" : $"Search {modeName}";
         Search.Accessibility.AccessibleName = mode == HavenMode.Chat
             ? "Search chats, Chat Groups and File Library"
@@ -174,6 +179,29 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         SetHeadingVisibility(FilesHeading, _mode == HavenMode.Chat);
         FilesEmpty.SetValue(HavenProperties.Visibility, _mode == HavenMode.Chat && files.Count == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         SetHeadingVisibility(ChatsHeading, true);
+    }
+
+    /// <summary>
+    /// Applies the current Space scope. Null returns to unscoped Chat: the
+    /// picker shows the surface name and Chat Groups return. When scoped, the
+    /// Space name becomes the scope label and group management is hidden so
+    /// only the current Space's content is listed.
+    /// </summary>
+    public void SetSpaceScope(string? spaceName)
+    {
+        _spaceName = spaceName;
+        var scoped = spaceName is not null;
+        SpacePicker.Content = spaceName ?? ModeName(_mode);
+        SpacePicker.Accessibility.AccessibleName = "Current Space selector";
+        ChatsHeading.Content = spaceName ?? (_mode switch
+        {
+            HavenMode.Study => "Study Chats",
+            HavenMode.Tasks => "Task Chats",
+            _ => "Chats"
+        });
+        GroupsHeading.SetValue(HavenProperties.Visibility, scoped ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        NewGroup.SetValue(HavenProperties.Visibility, scoped ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        GroupRows.SetValue(HavenProperties.Visibility, scoped ? HavenVisibility.Collapsed : HavenVisibility.Visible);
     }
 
     public void SetNewChatBusy(bool busy) =>
@@ -325,6 +353,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
             new PopupMenuItem(entry.Pinned ? "Unpin" : "Pin", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.TogglePin))),
             new PopupMenuItem(entry.Unread ? "Mark read" : "Mark unread", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.ToggleRead))),
             new PopupMenuItem("Move to group", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.Move))),
+            new PopupMenuItem("Move to Space", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.MoveToSpace))),
             new PopupMenuItem("Archive", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.Archive))),
             new PopupMenuItem("Delete", () => ConversationActionRequested?.Invoke(this, new(id, ChatSidebarConversationAction.Delete)), true)
         ]);
@@ -476,7 +505,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         const string markup = """
             <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
               <Container Name="HeaderRow" Row="0" Layout="Grid" Columns="1fr 34px" Width="100%" Gap="6px">
-                <Text Name="SidebarTitle" Content="Chat" Level="H2" Column="0" VerticalAlignment="Center" />
+                <Button Name="SpacePicker" Variant="Secondary" Content="Chat" Column="0" Height="38px" MinHeight="38px" />
                 <Button Name="SearchToggle" Variant="Icon" IconKey="search" Content="" Column="1" Width="34px" Height="34px" MinHeight="34px" />
               </Container>
               <Input Name="Search" Row="1" Width="100%" Height="34px" MinHeight="34px" Placeholder="Search chats, groups and files" Visibility="Collapsed" />

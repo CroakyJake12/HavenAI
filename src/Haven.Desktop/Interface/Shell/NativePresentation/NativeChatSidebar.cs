@@ -20,15 +20,18 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private readonly Func<ContainerDefinition, Task> _openGroup;
     private readonly NativeChatUiStateStore _stateStore;
     private readonly IConversationProductionRepository? _production;
+    private readonly SpaceRegistry? _spaces;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly ChatSidebarHavenScene _scene;
 
     private IReadOnlyList<Conversation> _conversationRows = [];
     private IReadOnlyList<ContainerDefinition> _groupRows = [];
     private IReadOnlyList<MessageAttachment> _fileRows = [];
+    private IReadOnlyList<SpaceDefinition> _spaceRows = [];
     private IReadOnlyDictionary<Guid, NativeChatItemState> _states = new Dictionary<Guid, NativeChatItemState>();
     private Guid? _activeConversationId;
     private Guid? _activeGroupId;
+    private Guid? _currentSpaceId;
     private HavenMode _currentMode = HavenMode.Chat;
     private string _query = string.Empty;
     private bool _refreshing;
@@ -43,7 +46,8 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         Func<HavenMode, Guid?, Task> startChat,
         Func<ContainerDefinition, Task> openGroup,
         NativeChatUiStateStore? stateStore = null,
-        IConversationProductionRepository? production = null)
+        IConversationProductionRepository? production = null,
+        SpaceRegistry? spaces = null)
     {
         _conversations = conversations ?? throw new ArgumentNullException(nameof(conversations));
         _containers = containers ?? throw new ArgumentNullException(nameof(containers));
@@ -52,6 +56,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _openGroup = openGroup ?? throw new ArgumentNullException(nameof(openGroup));
         _stateStore = stateStore ?? new NativeChatUiStateStore();
         _production = production;
+        _spaces = spaces;
 
         _scene = new ChatSidebarHavenScene();
         SceneHost = new HavenSceneControl { Root = _scene.Root };
@@ -63,14 +68,81 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _scene.SearchChanged += OnSearchChanged;
         _scene.NewChatRequested += OnNewChatRequested;
         _scene.NewGroupRequested += OnNewGroupRequested;
+        _scene.SpacePickerRequested += OnSpacePickerRequested;
         _scene.ConversationActionRequested += OnConversationActionRequested;
         _scene.GroupActionRequested += OnGroupActionRequested;
         _scene.FileRequested += OnFileRequested;
+        _ = LoadSpaceScopeAsync();
         _ = RefreshAsync();
     }
 
     internal HavenSceneControl SceneHost { get; }
     internal ChatSidebarHavenScene Scene => _scene;
+
+    /// <summary>The Space the sidebar is currently scoped to, or null for unscoped Chat.</summary>
+    internal Guid? CurrentSpaceId => _currentSpaceId;
+
+    /// <summary>Raised when the user asks to manage Spaces from the sidebar picker.</summary>
+    internal event EventHandler? ManageSpacesRequested;
+
+    private async Task LoadSpaceScopeAsync()
+    {
+        if (_spaces is null || _disposed) return;
+        try
+        {
+            _spaceRows = await _spaces.GetAllAsync(false, _lifetime.Token).ConfigureAwait(false);
+            _currentSpaceId = await _spaces.GetCurrentSpaceIdAsync(_lifetime.Token).ConfigureAwait(false);
+            if (_disposed) return;
+            ApplySpaceScopeToScene();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private void ApplySpaceScopeToScene()
+    {
+        var name = _currentSpaceId is { } id
+            ? _spaceRows.FirstOrDefault(space => space.Id == id)?.Name
+            : null;
+        if (_currentSpaceId is { } && name is null) _currentSpaceId = null;
+        _scene.SetSpaceScope(name);
+    }
+
+    private async void OnSpacePickerRequested(object? sender, EventArgs e)
+    {
+        if (_spaces is null) return;
+        try
+        {
+            _spaceRows = await _spaces.GetAllAsync(false, _lifetime.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus("Spaces could not be loaded: " + exception.Message);
+            return;
+        }
+        if (_disposed) return;
+
+        var choices = new List<(string Label, Action Action)>
+        {
+            ("General (no Space)", () => _ = SelectSpaceAsync(null))
+        };
+        choices.AddRange(_spaceRows
+            .OrderBy(space => space.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(space => (space.Name, (Action)(() => _ = SelectSpaceAsync(space.Id)))));
+        choices.Add(("Manage Spaces…", () => ManageSpacesRequested?.Invoke(this, EventArgs.Empty)));
+        _scene.ShowChoices("Spaces", choices);
+    }
+
+    private async Task SelectSpaceAsync(Guid? spaceId)
+    {
+        if (_spaces is not null)
+            await _spaces.SetCurrentSpaceIdAsync(spaceId, _lifetime.Token).ConfigureAwait(false);
+        _currentSpaceId = spaceId;
+        if (_disposed) return;
+        ApplySpaceScopeToScene();
+        await RefreshAsync();
+    }
 
     public async Task RefreshAsync()
     {
@@ -148,14 +220,20 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     {
         if (_disposed) return;
         bool Matches(string value) => _query.Length == 0 || value.Contains(_query, StringComparison.OrdinalIgnoreCase);
+        bool InScope(Conversation chat) => _currentSpaceId is null
+            ? chat.SpaceId is null
+            : chat.SpaceId == _currentSpaceId;
 
-        var groups = _groupRows
-            .Where(group => Matches(group.Name))
-            .OrderByDescending(GroupUpdatedAt)
-            .ThenBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var scoped = _currentSpaceId is not null;
+        var groups = scoped
+            ? []
+            : _groupRows
+                .Where(group => Matches(group.Name))
+                .OrderByDescending(GroupUpdatedAt)
+                .ThenBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         var conversations = _conversationRows
-            .Where(chat => Matches(chat.Title))
+            .Where(chat => InScope(chat) && Matches(chat.Title))
             .OrderByDescending(chat => chat.UpdatedAt)
             .ThenBy(chat => chat.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -176,7 +254,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             groupEntries.Add(GroupEntry(group));
             if (!state.IsExpanded) continue;
             groupEntries.AddRange(_conversationRows
-                .Where(chat => chat.ContainerId == group.Id && !chat.IsArchived && chat.Kind != ConversationKind.Call)
+                .Where(chat => chat.ContainerId == group.Id && !chat.IsArchived && chat.Kind != ConversationKind.Call && InScope(chat))
                 .OrderByDescending(chat => chat.UpdatedAt)
                 .Select(chat => ConversationEntry(chat, true)));
         }
@@ -302,6 +380,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
                 case ChatSidebarConversationAction.Move:
                     ShowMoveChoices(chat);
                     break;
+                case ChatSidebarConversationAction.MoveToSpace:
+                    ShowSpaceChoices(chat);
+                    break;
                 case ChatSidebarConversationAction.Archive:
                     await ArchiveConversationAsync(chat);
                     break;
@@ -390,6 +471,26 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => (group.Name, (Action)(() => _ = MoveConversationAsync(chat, group.Id)))));
         _scene.ShowChoices($"Move to {GroupName(_currentMode, false)}", choices);
+    }
+
+    private void ShowSpaceChoices(Conversation chat)
+    {
+        var current = chat.SpaceId;
+        var choices = new List<(string Label, Action Action)>
+        {
+            ("No Space", () => _ = MoveConversationToSpaceAsync(chat, null))
+        };
+        choices.AddRange(_spaceRows
+            .OrderBy(space => space.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(space => space.Id != current)
+            .Select(space => (space.Name, (Action)(() => _ = MoveConversationToSpaceAsync(chat, space.Id)))));
+        _scene.ShowChoices("Move to Space", choices);
+    }
+
+    private async Task MoveConversationToSpaceAsync(Conversation chat, Guid? spaceId)
+    {
+        await _conversations.UpsertConversationAsync(chat with { SpaceId = spaceId, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
+        await RefreshAsync();
     }
 
     private async Task StartChatAsync(Guid? groupId)
@@ -493,6 +594,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _scene.SearchChanged -= OnSearchChanged;
         _scene.NewChatRequested -= OnNewChatRequested;
         _scene.NewGroupRequested -= OnNewGroupRequested;
+        _scene.SpacePickerRequested -= OnSpacePickerRequested;
         _scene.ConversationActionRequested -= OnConversationActionRequested;
         _scene.GroupActionRequested -= OnGroupActionRequested;
         _scene.FileRequested -= OnFileRequested;

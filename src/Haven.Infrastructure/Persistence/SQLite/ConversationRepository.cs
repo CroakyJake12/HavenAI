@@ -177,12 +177,12 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO conversations(id, mode, kind, title, container_id, lesson_id, is_pinned, is_temporary, created_at, updated_at,is_archived,parent_conversation_id,compacted_at)
-            VALUES($id,$mode,$kind,$title,$containerId,$lessonId,$isPinned,$isTemporary,$createdAt,$updatedAt,$isArchived,$parentConversationId,$compactedAt)
+            INSERT INTO conversations(id, mode, kind, title, container_id, lesson_id, is_pinned, is_temporary, created_at, updated_at,is_archived,parent_conversation_id,compacted_at,space_id)
+            VALUES($id,$mode,$kind,$title,$containerId,$lessonId,$isPinned,$isTemporary,$createdAt,$updatedAt,$isArchived,$parentConversationId,$compactedAt,$spaceId)
             ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, title=excluded.title,
               container_id=excluded.container_id, lesson_id=excluded.lesson_id, is_pinned=excluded.is_pinned,
               is_temporary=excluded.is_temporary, updated_at=excluded.updated_at,is_archived=excluded.is_archived,
-              parent_conversation_id=excluded.parent_conversation_id,compacted_at=excluded.compacted_at;
+              parent_conversation_id=excluded.parent_conversation_id,compacted_at=excluded.compacted_at,space_id=excluded.space_id;
             """;
         command.Parameters.AddWithValue("$id", conversation.Id.ToString());
         command.Parameters.AddWithValue("$mode", (int)conversation.Mode);
@@ -197,6 +197,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         command.Parameters.AddWithValue("$isArchived", conversation.IsArchived ? 1 : 0);
         command.Parameters.AddWithValue("$parentConversationId", (object?)conversation.ParentConversationId?.ToString() ?? DBNull.Value);
         command.Parameters.AddWithValue("$compactedAt", (object?)conversation.CompactedAt?.ToString("O") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$spaceId", (object?)conversation.SpaceId?.ToString() ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -488,7 +489,8 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
                 reader.Guid("id"), (HavenMode)reader.Int32("mode"), (ConversationKind)reader.Int32("kind"), reader.String("title"),
                 reader.NullableGuid("container_id"), reader.NullableGuid("lesson_id"), reader.Boolean("is_pinned"), reader.Boolean("is_temporary"),
                 reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.Boolean("is_archived"),
-                reader.NullableGuid("parent_conversation_id"), reader.NullableString("compacted_at") is { } compacted ? DateTimeOffset.Parse(compacted, System.Globalization.CultureInfo.InvariantCulture) : null));
+                reader.NullableGuid("parent_conversation_id"), reader.NullableString("compacted_at") is { } compacted ? DateTimeOffset.Parse(compacted, System.Globalization.CultureInfo.InvariantCulture) : null,
+                reader.NullableGuid("space_id")));
         }
         return result;
     }

@@ -9,16 +9,21 @@ public sealed class UnifiedExecutionPersistenceTests : IDisposable
     private readonly TestPaths _paths = new();
 
     [Fact]
-    public async Task Migration_22_round_trips_graph_feedback_session_notifications_and_sources()
+    public async Task Migration_23_round_trips_graph_feedback_session_notifications_and_sources()
     {
         var database = new SqliteDatabase(_paths);
         await database.InitializeAsync(CancellationToken.None);
-        Assert.Equal(22, Migrations.LatestVersion);
+        Assert.Equal(23, Migrations.LatestVersion);
         await using (var connection = await database.OpenAsync(CancellationToken.None))
         {
             await using var version = connection.CreateCommand();
             version.CommandText = "SELECT MAX(version) FROM schema_migrations;";
             Assert.Equal((long)Migrations.LatestVersion, (long)(await version.ExecuteScalarAsync(CancellationToken.None))!);
+
+            // Migration 23 adds the optional canonical Space association.
+            var spaceColumn = connection.CreateCommand();
+            spaceColumn.CommandText = "SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name='space_id';";
+            Assert.Equal(1L, (long)(await spaceColumn.ExecuteScalarAsync(CancellationToken.None))!);
 
             await using var tables = connection.CreateCommand();
             tables.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('execution_events','action_feedback','remediations','external_agent_tasks','haven_notifications','workspace_session','extension_sources','extension_packages');";

@@ -18,7 +18,9 @@ public sealed partial class MainView
             OpenNativeConversationAsync,
             StartNativeConversationAsync,
             OpenNativeContainerAsync,
-            production: services.GetRequiredService<IConversationProductionRepository>());
+            production: services.GetRequiredService<IConversationProductionRepository>(),
+            spaces: services.GetService<SpaceRegistry>());
+        _nativeChatSidebar.ManageSpacesRequested += (_, _) => _ = OpenSpacesAsync();
 
         _studyAssignmentsSidebar = new StudyAssignmentsSidebarCoordinator(
             _nativeChatSidebar,
