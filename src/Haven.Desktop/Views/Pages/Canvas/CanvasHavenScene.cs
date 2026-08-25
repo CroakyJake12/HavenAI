@@ -69,7 +69,7 @@ internal sealed partial class CanvasHavenScene : IDisposable
         LockToggle.CheckedChanged += (_, _) => { if (!_suppressChanges) LockChanged?.Invoke(LockToggle.IsChecked); }; InfiniteToggle.CheckedChanged += (_, _) => { if (!_suppressChanges) InfiniteChanged?.Invoke(InfiniteToggle.IsChecked); }; ZoomSlider.ValueChanged += (_, _) => { if (!_suppressChanges) ZoomChanged?.Invoke(ZoomSlider.Value); }; PenWidthSlider.ValueChanged += (_, _) => { if (!_suppressChanges) PenWidthChanged?.Invoke(PenWidthSlider.Value); };
         PreviousButton.Invoked += (_, _) => PreviousRequested?.Invoke(this, EventArgs.Empty); NextButton.Invoked += (_, _) => NextRequested?.Invoke(this, EventArgs.Empty); NewCanvasButton.Invoked += (_, _) => NewRequested?.Invoke(this, EventArgs.Empty); SaveButton.Invoked += (_, _) => SaveRequested?.Invoke(this, EventArgs.Empty); ImportButton.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty); ExportButton.Invoked += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty); UndoButton.Invoked += (_, _) => UndoRequested?.Invoke(this, EventArgs.Empty); RedoButton.Invoked += (_, _) => RedoRequested?.Invoke(this, EventArgs.Empty);
         SelectToolButton.Invoked += (_, _) => { UnifiedSurface.SetTool(UnifiedCanvasTool.Select); ToolRequested?.Invoke(CanvasTool.Select); }; PenToolButton.Invoked += (_, _) => { UnifiedSurface.SetTool(UnifiedCanvasTool.Pen); ToolRequested?.Invoke(CanvasTool.Pen); }; HighlighterToolButton.Invoked += (_, _) => { UnifiedSurface.SetTool(UnifiedCanvasTool.Highlighter); ToolRequested?.Invoke(CanvasTool.Highlighter); }; EraserToolButton.Invoked += (_, _) => { UnifiedSurface.SetTool(UnifiedCanvasTool.Eraser); ToolRequested?.Invoke(CanvasTool.Eraser); }; PanToolButton.Invoked += (_, _) => { UnifiedSurface.SetTool(UnifiedCanvasTool.Pan); ToolRequested?.Invoke(CanvasTool.Pan); };
-        AddTextButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Text); AddShapeButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Rectangle); AddFrameButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Frame); DeleteButton.Invoked += (_, _) => DeleteRequested?.Invoke(this, EventArgs.Empty); BringFrontButton.Invoked += (_, _) => BringFrontRequested?.Invoke(this, EventArgs.Empty); SendBackButton.Invoked += (_, _) => SendBackRequested?.Invoke(this, EventArgs.Empty); ConnectButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Connector); GroupButton.Invoked += (_, _) => GroupRequested?.Invoke(this, EventArgs.Empty); UngroupButton.Invoked += (_, _) => UngroupRequested?.Invoke(this, EventArgs.Empty); ResetViewButton.Invoked += (_, _) => ResetViewRequested?.Invoke(this, EventArgs.Empty);
+        AddTextButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Text); AddShapeButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Rectangle); AddFrameButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Frame); DeleteButton.Invoked += (_, _) => DeleteRequested?.Invoke(this, EventArgs.Empty); BringFrontButton.Invoked += (_, _) => BringFrontRequested?.Invoke(this, EventArgs.Empty); SendBackButton.Invoked += (_, _) => SendBackRequested?.Invoke(this, EventArgs.Empty); ConnectButton.Invoked += (_, _) => UnifiedSurface.SetTool(UnifiedCanvasTool.Connector); GroupButton.Invoked += (_, _) => GroupRequested?.Invoke(this, EventArgs.Empty); UngroupButton.Invoked += (_, _) => UngroupRequested?.Invoke(this, EventArgs.Empty); ResetViewButton.Invoked += (_, _) => ResetViewRequested?.Invoke(this, EventArgs.Empty); BuildReleaseChrome(); BuildLibrary();
     }
 
     public event EventHandler? PreviousRequested; public event EventHandler? NextRequested; public event EventHandler? NewRequested; public event EventHandler? SaveRequested; public event EventHandler? ImportRequested; public event EventHandler? ExportRequested; public event EventHandler? UndoRequested; public event EventHandler? RedoRequested;
@@ -97,8 +97,9 @@ internal sealed partial class CanvasHavenScene : IDisposable
         _suppressChanges = true;
         try
         {
-            _title = document.Title; TitleInput.Text = document.Title; PositionText.Content = $"Canvas {documentIndex + 1} of {Math.Max(1, documentCount)} · v{document.Version}";
+            _title = document.Title; TitleInput.Text = document.Title; _releaseTitleInput.Text = document.Title; PositionText.Content = $"Canvas {documentIndex + 1} of {Math.Max(1, documentCount)} · v{document.Version}";
             if (!ReferenceEquals(UnifiedSurface.Controller, controller)) UnifiedSurface.SetController(controller);
+            _pointerOverlay.SetController(controller);
             UnifiedSurface.SetTool(ToUnifiedTool(controller.Tool));
             InfiniteToggle.IsChecked = controller.Board.Infinite; ZoomSlider.Value = controller.Board.Zoom;
             UndoButton.SetValue(HavenProperties.Enabled, canUndo); RedoButton.SetValue(HavenProperties.Enabled, canRedo); SetToolVisual(controller.Tool);
@@ -111,7 +112,7 @@ internal sealed partial class CanvasHavenScene : IDisposable
     {
         ArgumentNullException.ThrowIfNull(controller);
         var board = controller.Board;
-        BoardSummaryText.Content = $"{board.Objects.Count} objects · {board.Strokes.Count} strokes · {Math.Round(board.Zoom * 100)}% zoom";
+        BoardSummaryText.Content = $"{board.Objects.Count} objects · {board.Strokes.Count} strokes · {Math.Round(board.Zoom * 100)}% zoom"; if (_zoomReadout is not null) _zoomReadout.Content = $"{Math.Round(board.Zoom * 100)}%";
         ZoomSlider.Value = board.Zoom;
         var selected = controller.SelectedObjects;
         if (selected.Count > 1)

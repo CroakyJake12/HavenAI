@@ -128,6 +128,7 @@ internal sealed partial class CanvasHavenScene
 
         var more = CompactButton("Canvas.Release.More", "⋯", "Canvas file actions");
         more.Invoked += (_, _) => ShowMenu(more, [
+            new PopupMenuItem("Canvas home", () => LibraryRequested?.Invoke(this, EventArgs.Empty)),
             new PopupMenuItem("New canvas", () => NewRequested?.Invoke(this, EventArgs.Empty)),
             new PopupMenuItem("Save", () => SaveRequested?.Invoke(this, EventArgs.Empty)),
             new PopupMenuItem("Import board", () => ImportRequested?.Invoke(this, EventArgs.Empty)),
@@ -154,6 +155,7 @@ internal sealed partial class CanvasHavenScene
         _textDockButton = DockButton("Text", "Text");
         _addDockButton = DockButton("Add", "Add");
         _aiDockButton = DockButton("AI", "AI");
+        _aiDockButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
 
         _pointerDockButton.Invoked += (_, _) => ShowPointerMenu();
         _penDockButton.Invoked += (_, _) =>
@@ -426,12 +428,12 @@ internal sealed partial class CanvasHavenScene
         new PopupMenuItem("Arrow ↔", () => InsertRich("line", 220, 4, string.Empty, new Dictionary<string, object?> { ["shape"] = "line", ["arrowStart"] = true, ["arrowEnd"] = true })),
         new PopupMenuItem("Connector", () => UnifiedSurface.SetTool(UnifiedCanvasTool.Connector)),
         new PopupMenuItem("Frame", () => UnifiedSurface.SetTool(UnifiedCanvasTool.Frame)),
-        new PopupMenuItem("Image", () => SpecialInsertRequested?.Invoke("image")),
-        new PopupMenuItem("Video", () => SpecialInsertRequested?.Invoke("video")),
+
+
         new PopupMenuItem("Table…", () => TogglePanel(_tablePanel)),
         new PopupMenuItem("Sticky note", () => InsertRich("sticky", 220, 170, "Sticky note", new Dictionary<string, object?> { ["shape"] = "sticky" })),
         new PopupMenuItem("Ruler", () => InsertRich("ruler", 360, 48, "Ruler", new Dictionary<string, object?> { ["shape"] = "ruler" })),
-        new PopupMenuItem("HTML embed", () => SpecialInsertRequested?.Invoke("html"))
+
     ], 250, "Add to canvas");
 
     private void ShowAiMenu() => ShowMenu(_aiDockButton, [

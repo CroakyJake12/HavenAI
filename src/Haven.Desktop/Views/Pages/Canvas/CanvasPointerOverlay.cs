@@ -44,7 +44,13 @@ internal sealed class CanvasPointerOverlay : HavenElement, IHavenDrawCommandSour
 
     public void SetMode(CanvasPointerMode mode)
     {
-        if (Mode == mode) return;
+        if (Mode == mode)
+        {
+            SetValue(HavenProperties.Visibility,
+                mode is CanvasPointerMode.Normal or CanvasPointerMode.Pan ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+            Invalidate();
+            return;
+        }
         Mode = mode;
         _drawing = false;
         if (mode != CanvasPointerMode.LaserLasso) _points.Clear();

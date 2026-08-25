@@ -141,6 +141,34 @@ public sealed class CanvasProductionTests : IDisposable
     }
 
     [Fact]
+    public async Task Multiple_canvas_boards_keep_distinct_content_after_repository_restart()
+    {
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var validator = new NotesDocumentValidator();
+        var repository = new NotesRepository(_paths, validator, diagnostics);
+        var document = CanvasDocumentModel.Create("Two-board persistence");
+
+        var firstController = new CanvasInteractionController(CanvasDocumentModel.GetBoard(document, 0));
+        firstController.AddObject(NotesCanvasObjectKind.Text, "First board only");
+        CanvasDocumentModel.ReplaceBoard(document, firstController.Board, 0);
+
+        var secondIndex = CanvasDocumentModel.AddBoard(document, "Research");
+        var secondController = new CanvasInteractionController(CanvasDocumentModel.GetBoard(document, secondIndex));
+        secondController.AddObject(NotesCanvasObjectKind.Text, "Second board only");
+        CanvasDocumentModel.ReplaceBoard(document, secondController.Board, secondIndex);
+
+        await repository.SaveAsync(document, "Persist multiple Canvas boards", CancellationToken.None);
+
+        var reopenedRepository = new NotesRepository(_paths, validator, diagnostics);
+        var reopened = await reopenedRepository.LoadAsync(document.Id, CancellationToken.None);
+        Assert.NotNull(reopened);
+        Assert.Equal(2, CanvasDocumentModel.GetBoardCount(reopened!));
+        Assert.Equal(new[] { "Board", "Research" }, CanvasDocumentModel.GetBoardTitles(reopened));
+        Assert.Equal("First board only", CanvasDocumentModel.GetBoard(reopened, 0).Objects.Single().Text);
+        Assert.Equal("Second board only", CanvasDocumentModel.GetBoard(reopened, 1).Objects.Single().Text);
+    }
+
+    [Fact]
     public void Ghost_visibility_hides_unrevealed_layer_content_without_mutating_the_board()
     {
         var board = CanvasDocumentModel.GetBoard(CanvasDocumentModel.Create("Study board"));

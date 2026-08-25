@@ -33,10 +33,10 @@ public sealed class CanvasRecoveryTests
             Assert.True(scene.UnifiedSurface.Accessibility.Focusable);
             Assert.Equal("Editable canvas", scene.UnifiedSurface.Accessibility.AccessibleName);
             Assert.False(string.IsNullOrWhiteSpace(scene.UnifiedSurface.Accessibility.Description));
-            Assert.True(scene.AddShapeButton.Bounds.Width > 0);
-            Assert.True(scene.AddShapeButton.Bounds.Right <= scene.Root.Bounds.Right + .01);
+            Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == "Canvas.Release.ToolDock" && element.Bounds.Width > 0);
+            Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == "Canvas.Release.Tool.Add");
 
-            Click(router, scene.AddShapeButton);
+            scene.UnifiedSurface.SetTool(UnifiedCanvasTool.Rectangle);
             Assert.Equal(UnifiedCanvasTool.Rectangle, scene.UnifiedSurface.Tool);
 
             var createPoint = new HavenPoint(

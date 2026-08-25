@@ -116,8 +116,8 @@ public sealed class WritePageTests
         Assert.False(writePage.IsDirty);
         Assert.Equal(0, repository.SaveCalls);
         Assert.Empty(await repository.ListAsync(CancellationToken.None));
-        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.New");
-        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Import");
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Library.New");
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Library.Import");
         Assert.DoesNotContain(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Save");
     }
 

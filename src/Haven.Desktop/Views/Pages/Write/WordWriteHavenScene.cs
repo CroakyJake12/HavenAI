@@ -164,8 +164,8 @@ internal sealed partial class WordWriteHavenScene : IDisposable
         _blockInputs.Clear(); foreach (var child in DocumentHost.Children.ToList()) child.Parent?.Remove(child);
         DocumentHost.SetValue(HavenProperties.MaxWidth, HavenLength.Auto); DocumentHost.SetValue(HavenProperties.Padding, HavenThickness.Parse("0px"));
         if (_editor is null) {
-            var actions = Pill("Write.Library.Actions"); var create = Btn("Write.Pill.New", "New", ButtonVariant.Primary); create.Invoked += (_, _) => NewRequested?.Invoke(this, EventArgs.Empty); var import = Btn("Write.Pill.Import", "Import"); import.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty); actions.Add(create); actions.Add(import); DocumentHost.Add(actions);
-            foreach (var document in _libraryDocuments) { var card = Btn($"Write.Library.Card.{document.Id:N}", $"{document.Title} � {document.WordCount} words � v{document.Version}"); card.Invoked += (_, _) => DocumentOpenRequested?.Invoke(document.Id); DocumentHost.Add(card); } return;
+            BuildLibraryLanding();
+            return;
         }
         var documentActions = Pill("Write.Document.Actions"); var library = Btn("Write.Pill.Library", "Library"); library.Invoked += (_, _) => LibraryRequested?.Invoke(this, EventArgs.Empty); var save = Btn("Write.Pill.Save", "Save", ButtonVariant.Primary); save.Invoked += (_, _) => SaveRequested?.Invoke(this, EventArgs.Empty); documentActions.Add(library); documentActions.Add(save); DocumentHost.Add(documentActions);
         DocumentSurface.SetEditor(_editor); DocumentHost.Add(DocumentSurface);
