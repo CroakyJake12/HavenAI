@@ -37,7 +37,8 @@ internal sealed partial class WordWriteHavenScene
             {
                 Group("Find and replace", "Write.Review.Find", "Write.Review.Replace"),
                 Group("Comments", "Write.Review.Comment", "Write.Review.AddComment"),
-                Group("Sources", "Write.Review.SourceTitle", "Write.Review.Authors", "Write.Review.Url", "Write.Review.AddSource")
+                Group("Sources", "Write.Review.SourceTitle", "Write.Review.Authors", "Write.Review.Url", "Write.Review.AddSource"),
+                Group("Read aloud", "Write.Review.ReadAloud.")
             },
             _ => []
         };

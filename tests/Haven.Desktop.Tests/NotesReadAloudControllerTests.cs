@@ -177,6 +177,276 @@ public sealed class NotesReadAloudControllerTests
     }
 
     /// <summary>
+    /// Verifies that chunk splitting prefers sentence boundaries and never exceeds the limit.
+    /// </summary>
+    [Fact]
+    public void SplitIntoChunksPrefersSentenceBoundariesWithinMaximumLength()
+    {
+        var sentence = "Haven reads long documents locally without sending any text to a network service.";
+        var text = string.Join(' ', Enumerable.Repeat(sentence, 20));
+
+        var chunks = NotesReadAloudController.SplitIntoChunks(text);
+
+        Assert.True(chunks.Count > 1, "expected a long document to produce several chunks");
+        Assert.All(chunks, chunk => Assert.False(string.IsNullOrWhiteSpace(chunk)));
+        Assert.All(chunks, chunk => Assert.True(chunk.Length <= 600, "every chunk must respect the maximum length"));
+        Assert.All(chunks, chunk => Assert.EndsWith(".", chunk, StringComparison.Ordinal));
+        Assert.Equal(text, string.Join(' ', chunks));
+    }
+
+    /// <summary>
+    /// Verifies that an oversize sentence without terminators is hard-split at word boundaries.
+    /// </summary>
+    [Fact]
+    public void SplitIntoChunksHardSplitsOversizeSentencesAtWordBoundaries()
+    {
+        var longSentence = string.Concat(Enumerable.Repeat("word ", 200)).Trim();
+
+        var chunks = NotesReadAloudController.SplitIntoChunks(longSentence, 120);
+
+        Assert.True(chunks.Count >= 8, "expected a 999-character sentence to be hard-split");
+        Assert.All(chunks, chunk => Assert.True(chunk.Length <= 120, "every hard-split chunk must respect the limit"));
+        Assert.Equal(longSentence, string.Join(' ', chunks));
+    }
+
+    /// <summary>
+    /// Verifies that blank input produces no chunks and is rejected before speaking.
+    /// </summary>
+    [Fact]
+    public async Task BlankLongFormTextProducesNoChunksAndIsRejectedBeforeSpeaking()
+    {
+        var speech = new FakeSpeechOutputService();
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        try
+        {
+            Assert.Empty(NotesReadAloudController.SplitIntoChunks(" \n\t "));
+
+            var error = await Assert.ThrowsAsync<ArgumentException>(() =>
+                controller.SpeakLongFormAsync("   ", null, CancellationToken.None));
+
+            Assert.Contains("no readable text", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, speech.SpeakCalls);
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Verifies continuous reading speaks every chunk in order and reports completion honestly.
+    /// </summary>
+    [Fact]
+    public async Task LongFormSpeaksEveryChunkInOrderAndReportsCompletion()
+    {
+        var speech = new FakeSpeechOutputService();
+        var diagnostics = new RecordingDiagnostics();
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            diagnostics);
+        var progress = new List<double>();
+        controller.ProgressChanged += progress.Add;
+        try
+        {
+            var chunks = new[] { "First passage.", "Second passage.", "Third passage." };
+            await controller.SpeakLongFormAsync(chunks, "en-GB", CancellationToken.None);
+
+            Assert.Equal(chunks, speech.SpokenTexts);
+            Assert.Equal(3, speech.SpeakCalls);
+            Assert.Equal("default-output", speech.LastOutputDeviceId);
+            Assert.False(controller.IsActive);
+            Assert.False(controller.IsReading);
+            Assert.False(controller.IsPaused);
+            Assert.Equal(0, controller.ChunkCount);
+            Assert.True(progress.Count > 0);
+            Assert.Equal(1d, progress[^1]);
+            Assert.Contains(diagnostics.Events, value =>
+                value.EventName == "read-aloud-completed"
+                && value.Data.TryGetValue("networkContentSent", out var sent)
+                && sent.Equals(bool.FalseString, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Verifies skip forward restarts speech at the next chunk.
+    /// </summary>
+    [Fact]
+    public async Task SkipForwardRestartsSpeechAtTheNextChunk()
+    {
+        var speech = new FakeSpeechOutputService { HoldPlayback = true };
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        try
+        {
+            var read = controller.SpeakLongFormAsync(
+                ["Alpha section.", "Beta section.", "Gamma section."],
+                null,
+                CancellationToken.None);
+            await WaitForAsync(() => speech.SpokenTexts.Count >= 1, "the first chunk");
+            var firstChunkCancellation = speech.LastSpeakCancellation;
+
+            await controller.SkipForwardAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await WaitForAsync(() => speech.SpokenTexts.Count >= 2, "the second chunk");
+
+            Assert.Equal("Beta section.", speech.SpokenTexts[1]);
+            Assert.Equal(1, controller.CurrentChunkIndex);
+            Assert.True(firstChunkCancellation.IsCancellationRequested);
+
+            await controller.StopAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            Assert.False(controller.IsReading);
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Verifies pause retains the queue position and resume re-speaks the retained current chunk.
+    /// </summary>
+    [Fact]
+    public async Task PauseRetainsPositionAndResumeRespeaksCurrentChunk()
+    {
+        var speech = new FakeSpeechOutputService { HoldPlayback = true };
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        try
+        {
+            var read = controller.SpeakLongFormAsync(
+                ["Opening section.", "Middle section.", "Closing section."],
+                null,
+                CancellationToken.None);
+            await WaitForAsync(() => speech.SpokenTexts.Count >= 1, "the first chunk");
+
+            await controller.PauseAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+            Assert.True(controller.IsActive);
+            Assert.True(controller.IsReading);
+            Assert.True(controller.IsPaused);
+            Assert.Equal(0, controller.CurrentChunkIndex);
+            Assert.True(speech.LastSpeakCancellation.IsCancellationRequested);
+
+            await controller.ResumeAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await WaitForAsync(() => speech.SpokenTexts.Count >= 2, "the resumed chunk");
+
+            Assert.False(controller.IsPaused);
+            Assert.Equal(0, controller.CurrentChunkIndex);
+            Assert.Equal("Opening section.", speech.SpokenTexts[1]);
+
+            await controller.StopAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Verifies stopping a long-form session cancels speech and reports reading end exactly once.
+    /// </summary>
+    [Fact]
+    public async Task StopDuringLongFormCancelsSpeechAndRaisesReadingEvents()
+    {
+        var speech = new FakeSpeechOutputService { HoldPlayback = true };
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        var readingStates = new List<bool>();
+        controller.IsReadingChanged += readingStates.Add;
+        try
+        {
+            var read = controller.SpeakLongFormAsync(
+                ["Only section one.", "Only section two."],
+                null,
+                CancellationToken.None);
+            await WaitForAsync(() => speech.SpokenTexts.Count >= 1, "the first chunk");
+
+            await controller.StopAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+            Assert.True(speech.StopCalls >= 1);
+            Assert.True(speech.LastSpeakCancellation.IsCancellationRequested);
+            Assert.False(controller.IsActive);
+            Assert.False(controller.IsReading);
+            Assert.False(controller.IsPaused);
+            Assert.Equal([true, false], readingStates);
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Verifies the preferred voice is passed through when the service exposes it and clears again.
+    /// </summary>
+    [Fact]
+    public async Task PreferredVoiceIdentifierIsPassedThroughWhenTheServiceExposesIt()
+    {
+        var speech = new FakeSpeechOutputService
+        {
+            AvailableVoices =
+            [
+                new CallVoice("voice-en-us", "English US", "en-US", true),
+                new CallVoice("voice-en-gb", "English UK", "en-GB", false)
+            ]
+        };
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        try
+        {
+            controller.SetPreferredVoice("voice-en-gb");
+            await controller.ReadAsync("Preferred voice passage.", null, CancellationToken.None);
+            Assert.Equal("voice-en-gb", speech.LastVoiceName);
+
+            controller.SetPreferredVoice(null);
+            await controller.ReadAsync("Language fallback passage.", "en-US", CancellationToken.None);
+            Assert.Equal("voice-en-us", speech.LastVoiceName);
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Waits until the condition holds so playback assertions stay free of fixed sleeps.
+    /// </summary>
+    private static async Task WaitForAsync(Func<bool> condition, string description)
+    {
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(10);
+        while (!condition())
+        {
+            if (DateTimeOffset.UtcNow > deadline)
+                throw new TimeoutException("Timed out waiting for " + description);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Represents fake speech output service and keeps its related state and behavior together.
     /// </summary>
     private sealed class FakeSpeechOutputService : ISpeechOutputService
@@ -189,6 +459,10 @@ public sealed class NotesReadAloudControllerTests
         /// Gets or updates speak calls, the bindable or domain state represented by this property.
         /// </summary>
         public int SpeakCalls { get; private set; }
+        /// <summary>
+        /// Gets every text passed to SpeakAsync in call order.
+        /// </summary>
+        public List<string> SpokenTexts { get; } = [];
         /// <summary>
         /// Gets or updates stop calls, the bindable or domain state represented by this property.
         /// </summary>
@@ -245,6 +519,7 @@ public sealed class NotesReadAloudControllerTests
             CancellationToken cancellationToken)
         {
             SpeakCalls++;
+            SpokenTexts.Add(text);
             LastText = text;
             LastVoiceName = voiceName;
             LastOutputDeviceId = outputDeviceId;

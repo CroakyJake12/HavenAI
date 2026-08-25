@@ -1,7 +1,11 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
+<<<<<<< HEAD
 using Haven.Desktop.Views.Pages.Boards;
+=======
+using Haven.Desktop.Services;
+>>>>>>> 61fa1bc (feat(accessibility): continuous read-aloud with playback controls)
 using Haven.Desktop.Views.Pages.Canvas;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Present;
@@ -29,7 +33,8 @@ public sealed partial class MainView
         {
             "write" => new WritePage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>(),
-                ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>()),
+                ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>(),
+                readAloud: services.GetRequiredService<NotesReadAloudController>()),
             "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),

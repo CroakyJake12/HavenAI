@@ -11,6 +11,7 @@ using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Backend;
+using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Pages.Browser;
@@ -41,6 +42,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     private readonly IOllamaClient _ollama;
     private readonly UserPreferencesService _preferences;
     private readonly BrowserToolRuntime _browserTools;
+    private readonly NotesReadAloudController? _readAloud;
     private readonly BrowserHavenScene _havenScene;
     private readonly BrowserNativeWebResolver _nativeWebResolver;
     private readonly HavenSceneControl _sceneControl;
@@ -77,13 +79,21 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         BrowserSessionService browser,
         BrowserDataService data,
         IOllamaClient ollama,
-        UserPreferencesService preferences)
+        UserPreferencesService preferences,
+        NotesReadAloudController? readAloud = null)
     {
         _bus = bus;
         _browser = browser;
         _data = data;
         _ollama = ollama;
         _preferences = preferences;
+        _readAloud = readAloud;
+        if (_readAloud is not null)
+        {
+            _readAloud.StatusChanged += OnReadAloudStatusChanged;
+            _readAloud.ProgressChanged += OnReadAloudProgressChanged;
+            _readAloud.IsReadingChanged += OnReadAloudIsReadingChanged;
+        }
         _browserTools = new BrowserToolRuntime(browser);
         InitializeResearch();
         var settings = data.Settings;
@@ -123,6 +133,28 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         InspectCommand = new AsyncRelayCommand(() => RunSafelyAsync(() => _browser.OpenDeveloperToolsAsync(CancellationToken.None)));
         AskAssistantCommand = new AsyncRelayCommand(AskAssistantAsync, () => !string.IsNullOrWhiteSpace(AssistantInput));
         SummariseCommand = new AsyncRelayCommand(() => AskAssistantAsync("Summarise this page. Include the key claims and any action items."));
+        ReadPageAloudCommand = new AsyncRelayCommand(ReadPageAloudAsync);
+        StopReadAloudCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () =>
+        {
+            if (_readAloud is not null && _readAloud.IsActive)
+                await _readAloud.StopAsync(CancellationToken.None);
+        }));
+        SkipReadAloudBackCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () =>
+        {
+            if (_readAloud is not null && _readAloud.IsReading)
+                await _readAloud.SkipBackwardAsync(CancellationToken.None);
+        }));
+        SkipReadAloudForwardCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () =>
+        {
+            if (_readAloud is not null && _readAloud.IsReading)
+                await _readAloud.SkipForwardAsync(CancellationToken.None);
+        }));
+        ToggleReadAloudPauseCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () =>
+        {
+            if (_readAloud is null || !_readAloud.IsReading) return;
+            if (_readAloud.IsPaused) await _readAloud.ResumeAsync(CancellationToken.None);
+            else await _readAloud.PauseAsync(CancellationToken.None);
+        }));
         SaveBrowserSettingsCommand = new AsyncRelayCommand(SaveBrowserSettingsAsync);
         ToggleExtensionCommand = new AsyncRelayCommand<BrowserExtensionDefinition>(ToggleExtensionAsync);
         DeleteExtensionCommand = new AsyncRelayCommand<BrowserExtensionDefinition>(DeleteExtensionAsync);
@@ -205,6 +237,21 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
+    public bool IsReadAloudActive => _readAloud?.IsReading == true;
+    public bool IsReadAloudPaused => _readAloud?.IsPaused == true;
+    public string ReadAloudSummary
+    {
+        get
+        {
+            if (_readAloud is null) return "Read aloud is unavailable because the local speech service is not registered.";
+            if (!IsReadAloudActive) return "Read aloud is idle.";
+            var count = Math.Max(_readAloud.ChunkCount, 1);
+            var index = Math.Clamp(_readAloud.CurrentChunkIndex, 0, count - 1);
+            return IsReadAloudPaused
+                ? $"Paused · section {index + 1} of {count}"
+                : $"Reading this page aloud locally · section {index + 1} of {count}";
+        }
+    }
     public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen || IsResearchOpen || IsDownloadsOpen || IsTabsManagerOpen || IsPageActionsOpen;
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
     public string PrivacyLabel => IsPrivate ? "Private tab - history and tab state are not saved" : "Standard tab";
@@ -250,6 +297,11 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public AsyncRelayCommand InspectCommand { get; }
     public AsyncRelayCommand AskAssistantCommand { get; }
     public AsyncRelayCommand SummariseCommand { get; }
+    public AsyncRelayCommand ReadPageAloudCommand { get; }
+    public AsyncRelayCommand StopReadAloudCommand { get; }
+    public AsyncRelayCommand SkipReadAloudBackCommand { get; }
+    public AsyncRelayCommand SkipReadAloudForwardCommand { get; }
+    public AsyncRelayCommand ToggleReadAloudPauseCommand { get; }
     public AsyncRelayCommand SaveBrowserSettingsCommand { get; }
     public AsyncRelayCommand<BrowserExtensionDefinition> ToggleExtensionCommand { get; }
     public AsyncRelayCommand<BrowserExtensionDefinition> DeleteExtensionCommand { get; }
@@ -444,6 +496,59 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             "You are Haven's browser side assistant. Use only the supplied page text, state uncertainty, and explain that this model cannot interact with the page."), CancellationToken.None);
     });
 
+    private Task ReadPageAloudAsync() => RunSafelyAsync(async () =>
+    {
+        if (_readAloud is null)
+        {
+            Status = "Read aloud is unavailable because the local speech service is not registered.";
+            return;
+        }
+
+        Status = "Extracting visible page text…";
+        var visibleText = await _browser.ReadVisibleTextAsync(CancellationToken.None);
+        if (string.IsNullOrWhiteSpace(visibleText))
+        {
+            Status = "No readable page text was found on this tab.";
+            return;
+        }
+
+        await _readAloud.SpeakLongFormAsync(visibleText, language: null, CancellationToken.None);
+    });
+
+    private void OnReadAloudStatusChanged(object? sender, NotesReadAloudStatus status) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+            Status = status.Message;
+            NotifyReadAloudStateChanged();
+        });
+
+    private void OnReadAloudProgressChanged(double progress) =>
+        Dispatcher.UIThread.Post(() => { if (!_disposed) NotifyReadAloudStateChanged(); });
+
+    private void OnReadAloudIsReadingChanged(bool isReading) =>
+        Dispatcher.UIThread.Post(() => { if (!_disposed) NotifyReadAloudStateChanged(); });
+
+    private void NotifyReadAloudStateChanged()
+    {
+        RaisePropertyChanged(nameof(IsReadAloudActive));
+        RaisePropertyChanged(nameof(IsReadAloudPaused));
+        RaisePropertyChanged(nameof(ReadAloudSummary));
+    }
+
+    private async Task StopReadAloudAfterNavigationAsync()
+    {
+        if (_readAloud is null || !_readAloud.IsActive) return;
+        try
+        {
+            await _readAloud.StopAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Status = "Couldn't stop read aloud after navigation: " + ex.Message;
+        }
+    }
+
     private Task SaveBrowserSettingsAsync() => RunSafelyAsync(async () =>
     {
         await _data.SaveSettingsAsync(new BrowserSettings(HomePage.Trim(), SearchTemplate.Trim(), SaveHistory, OfferToSaveLogins,
@@ -572,12 +677,15 @@ public sealed partial class BrowserPage : UserControl, IDisposable
 
     private async Task HandleStateChangedAsync(BrowserSnapshot state)
     {
+        var previousAddress = Address;
         if (state.Address is not null) Address = state.Address.ToString();
         IsLoading = state.IsLoading;
         CanGoBack = state.CanGoBack;
         CanGoForward = state.CanGoForward;
         BackCommand.RaiseCanExecuteChanged();
         ForwardCommand.RaiseCanExecuteChanged();
+        if (!string.Equals(previousAddress, Address, StringComparison.OrdinalIgnoreCase))
+            await StopReadAloudAfterNavigationAsync();
         Status = state.IsLoading ? "Loading..." : state.Status;
         if (SelectedTab is null) return;
         SelectedTab.Address = Address;
@@ -594,6 +702,14 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        if (_readAloud is not null)
+        {
+            _readAloud.StatusChanged -= OnReadAloudStatusChanged;
+            _readAloud.ProgressChanged -= OnReadAloudProgressChanged;
+            _readAloud.IsReadingChanged -= OnReadAloudIsReadingChanged;
+            if (_readAloud.IsActive)
+                _ = Task.Run(async () => { try { await _readAloud.StopAsync(CancellationToken.None); } catch (Exception) { /* page is closing */ } });
+        }
         _sceneControl.InputSubmitted -= _havenScene.HandleInputSubmitted;
         ImportExtensionRequested -= OnImportExtensionRequested;
         _nativeWebResolver.Dispose();

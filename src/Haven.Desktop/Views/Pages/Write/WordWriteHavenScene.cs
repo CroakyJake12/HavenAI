@@ -128,7 +128,7 @@ internal sealed partial class WordWriteHavenScene : IDisposable
     private void SetTab(WordWriteRibbonTab tab) { _tab = tab; RebuildRibbon(); }
     private void RebuildAll() { RebuildRibbon(); RebuildDocument(); UpdateStats(); RefreshCommands(); }
     private void RefreshCommands() { if (_editor is null) return; UndoButton.SetValue(HavenProperties.Enabled, _editor.CanUndo); RedoButton.SetValue(HavenProperties.Enabled, _editor.CanRedo); StyleRibbonTab(HomeTab, _tab == WordWriteRibbonTab.Home); StyleRibbonTab(InsertTab, _tab == WordWriteRibbonTab.Insert); StyleRibbonTab(LayoutTab, _tab == WordWriteRibbonTab.Layout); StyleRibbonTab(ReviewTab, _tab == WordWriteRibbonTab.Review); }
-    private void RebuildRibbon() { RibbonContent.Children.ToList().ForEach(child => child.Parent?.Remove(child)); if (_editor is null) return; switch (_tab) { case WordWriteRibbonTab.Home: HomeModern(); break; case WordWriteRibbonTab.Insert: InsertModern(); break; case WordWriteRibbonTab.Layout: LayoutModern(); break; case WordWriteRibbonTab.Review: Review(); break; } BuildRibbonGroups(); RefreshCommands(); }
+    private void RebuildRibbon() { RibbonContent.Children.ToList().ForEach(child => child.Parent?.Remove(child)); if (_editor is null) return; switch (_tab) { case WordWriteRibbonTab.Home: HomeModern(); break; case WordWriteRibbonTab.Insert: InsertModern(); break; case WordWriteRibbonTab.Layout: LayoutModern(); break; case WordWriteRibbonTab.Review: Review(); AddReadAloudControls(); break; } BuildRibbonGroups(); RefreshCommands(); }
 
     private void Home()
     {
@@ -165,7 +165,7 @@ internal sealed partial class WordWriteHavenScene : IDisposable
         DocumentHost.SetValue(HavenProperties.MaxWidth, HavenLength.Auto); DocumentHost.SetValue(HavenProperties.Padding, HavenThickness.Parse("0px"));
         if (_editor is null) {
             var actions = Pill("Write.Library.Actions"); var create = Btn("Write.Pill.New", "New", ButtonVariant.Primary); create.Invoked += (_, _) => NewRequested?.Invoke(this, EventArgs.Empty); var import = Btn("Write.Pill.Import", "Import"); import.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty); actions.Add(create); actions.Add(import); DocumentHost.Add(actions);
-            foreach (var document in _libraryDocuments) { var card = Btn($"Write.Library.Card.{document.Id:N}", $"{document.Title} · {document.WordCount} words · v{document.Version}"); card.Invoked += (_, _) => DocumentOpenRequested?.Invoke(document.Id); DocumentHost.Add(card); } return;
+            foreach (var document in _libraryDocuments) { var card = Btn($"Write.Library.Card.{document.Id:N}", $"{document.Title} ï¿½ {document.WordCount} words ï¿½ v{document.Version}"); card.Invoked += (_, _) => DocumentOpenRequested?.Invoke(document.Id); DocumentHost.Add(card); } return;
         }
         var documentActions = Pill("Write.Document.Actions"); var library = Btn("Write.Pill.Library", "Library"); library.Invoked += (_, _) => LibraryRequested?.Invoke(this, EventArgs.Empty); var save = Btn("Write.Pill.Save", "Save", ButtonVariant.Primary); save.Invoked += (_, _) => SaveRequested?.Invoke(this, EventArgs.Empty); documentActions.Add(library); documentActions.Add(save); DocumentHost.Add(documentActions);
         DocumentSurface.SetEditor(_editor); DocumentHost.Add(DocumentSurface);
