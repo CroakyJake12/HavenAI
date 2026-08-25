@@ -115,16 +115,25 @@ public static class PlannerServiceCollectionExtensions
         services.TryAddSingleton<IStudyPlannerService, StudyPlannerService>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IDynamicCapabilityProvider, ConnectionCapabilityProvider>());
         services.TryAddSingleton<CalendarConnectionToolRuntime>();
+        services.TryAddSingleton<ICalendarOAuthClientIdProvider, EnvironmentCalendarOAuthClientIdProvider>();
+        services.TryAddSingleton<IOAuthBrowserLauncher, SystemOAuthBrowserLauncher>();
         services.TryAddSingleton<ICalendarTokenStore, WindowsCalendarTokenStore>();
         services.AddHttpClient("HavenCalendarSync", client => client.Timeout = TimeSpan.FromSeconds(45));
+        services.AddHttpClient("HavenMail", client => client.Timeout = TimeSpan.FromSeconds(45));
+        services.TryAddSingleton<IMailDraftStore, FileMailDraftStore>();
+        services.TryAddSingleton<IConnectedAccountAccessTokenProvider, ConnectedAccountAccessTokenProvider>();
+        services.AddSingleton<IMailProvider, GoogleMailProvider>();
+        services.AddSingleton<IMailProvider, MicrosoftMailProvider>();
+        services.TryAddSingleton<IMailProviderRegistry, MailProviderRegistry>();
+        services.TryAddSingleton<IMailService, MailService>();
         services.TryAddSingleton<GoogleCalendarProviderTransport>(provider => new GoogleCalendarProviderTransport(
-            CreateGoogleConfiguration(), provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<IPlannerRepository>(),
-            provider.GetRequiredService<ICalendarSyncStore>(), provider.GetRequiredService<ICalendarTokenStore>()));
+            CreateGoogleConfiguration(provider.GetRequiredService<ICalendarOAuthClientIdProvider>()), provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<IPlannerRepository>(),
+            provider.GetRequiredService<ICalendarSyncStore>(), provider.GetRequiredService<ICalendarTokenStore>(), provider.GetRequiredService<IOAuthBrowserLauncher>()));
         services.TryAddSingleton<MicrosoftCalendarProviderTransport>(provider => new MicrosoftCalendarProviderTransport(
-            CreateMicrosoftConfiguration(), provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<IPlannerRepository>(),
-            provider.GetRequiredService<ICalendarSyncStore>(), provider.GetRequiredService<ICalendarTokenStore>()));
-        services.AddSingleton<ICalendarSyncProvider>(provider => new CalendarSyncProvider(CreateGoogleConfiguration(), provider.GetRequiredService<GoogleCalendarProviderTransport>()));
-        services.AddSingleton<ICalendarSyncProvider>(provider => new CalendarSyncProvider(CreateMicrosoftConfiguration(), provider.GetRequiredService<MicrosoftCalendarProviderTransport>()));
+            CreateMicrosoftConfiguration(provider.GetRequiredService<ICalendarOAuthClientIdProvider>()), provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<IPlannerRepository>(),
+            provider.GetRequiredService<ICalendarSyncStore>(), provider.GetRequiredService<ICalendarTokenStore>(), provider.GetRequiredService<IOAuthBrowserLauncher>()));
+        services.AddSingleton<ICalendarSyncProvider>(provider => new CalendarSyncProvider(CreateGoogleConfiguration(provider.GetRequiredService<ICalendarOAuthClientIdProvider>()), provider.GetRequiredService<GoogleCalendarProviderTransport>()));
+        services.AddSingleton<ICalendarSyncProvider>(provider => new CalendarSyncProvider(CreateMicrosoftConfiguration(provider.GetRequiredService<ICalendarOAuthClientIdProvider>()), provider.GetRequiredService<MicrosoftCalendarProviderTransport>()));
         services.TryAddSingleton<ICalendarSyncProviderRegistry, CalendarSyncProviderRegistry>();
         return services;
     }
@@ -132,18 +141,18 @@ public static class PlannerServiceCollectionExtensions
     /// <summary>
     /// Creates google configuration with the invariants required by its callers.
     /// </summary>
-    private static CalendarProviderConfiguration CreateGoogleConfiguration() => new(
+    private static CalendarProviderConfiguration CreateGoogleConfiguration(ICalendarOAuthClientIdProvider clientIds) => new(
         CalendarProviderKind.Google,
-        Environment.GetEnvironmentVariable("HAVEN_GOOGLE_CALENDAR_CLIENT_ID")?.Trim(),
+        clientIds.GetClientId(CalendarProviderKind.Google),
         new Uri("http://127.0.0.1:53682/oauth/google/", UriKind.Absolute),
-        ["openid", "email", "https://www.googleapis.com/auth/calendar"]);
+        ["openid", "email", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/gmail.modify"]);
 
     /// <summary>
     /// Creates microsoft configuration with the invariants required by its callers.
     /// </summary>
-    private static CalendarProviderConfiguration CreateMicrosoftConfiguration() => new(
+    private static CalendarProviderConfiguration CreateMicrosoftConfiguration(ICalendarOAuthClientIdProvider clientIds) => new(
         CalendarProviderKind.Microsoft,
-        Environment.GetEnvironmentVariable("HAVEN_MICROSOFT_CALENDAR_CLIENT_ID")?.Trim(),
+        clientIds.GetClientId(CalendarProviderKind.Microsoft),
         new Uri("http://localhost:53683/oauth/microsoft/", UriKind.Absolute),
-        ["openid", "offline_access", "User.Read", "Calendars.ReadWrite"]);
+        ["openid", "offline_access", "User.Read", "Calendars.ReadWrite", "Mail.ReadWrite", "Mail.Send"]);
 }

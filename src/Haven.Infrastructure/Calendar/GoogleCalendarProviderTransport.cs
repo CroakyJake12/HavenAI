@@ -25,8 +25,9 @@ public sealed class GoogleCalendarProviderTransport(
     IHttpClientFactory httpClientFactory,
     IPlannerRepository repository,
     ICalendarSyncStore store,
-    ICalendarTokenStore tokenStore)
-    : OAuthCalendarTransportBase(configuration, httpClientFactory, repository, store, tokenStore)
+    ICalendarTokenStore tokenStore,
+    IOAuthBrowserLauncher browserLauncher)
+    : OAuthCalendarTransportBase(configuration, httpClientFactory, repository, store, tokenStore, browserLauncher)
 {
     /// <summary>
     /// Gets or updates authorization endpoint, the bindable or domain state represented by this property.
