@@ -194,6 +194,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelPermissionStore, VersionedModelPermissionStore>();
         services.AddSingleton<ModelPersonalityService>();
         services.AddSingleton<ModelPermissionEvaluator>();
+        services.AddSingleton<IDefaultProviderStore, VersionedDefaultProviderStore>();
         services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
         services.AddSingleton<ImagineGenerationCommand>();
         services.AddSingleton<RemediationCoordinator>();

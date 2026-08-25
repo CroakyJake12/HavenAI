@@ -269,6 +269,8 @@ public sealed class ChatPageViewModel : ObservableObject
         CompactContextCommand = new AsyncRelayCommand(() => CompactContextAsync(false));
         AnswerInlineQuestionCommand = new RelayCommand<string>(AnswerInlineQuestion);
         DismissInlineQuestionCommand = new RelayCommand(() => InlineQuestion = null);
+        AcceptSuggestedActionCommand = new RelayCommand<string>(AcceptSuggestedAction);
+        DismissSuggestedActionsCommand = new RelayCommand(() => SuggestedActions = []);
         EnableComputerUseCommand = new RelayCommand(EnableComputerUse);
         DismissComputerUseCommand = new RelayCommand(DismissComputerUse);
         RemoveAttachmentCommand = new RelayCommand<AttachmentItemViewModel>(RemoveAttachment);
@@ -613,6 +615,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Reports whether inline question applies to the current state.
     /// </summary>
     public bool HasInlineQuestion => InlineQuestion is not null;
+    /// <summary>Title of the plan awaiting approval, if any.</summary>
+    public string? PendingPlanTitle { get; private set; }
+    /// <summary>Optional non-modal next-step suggestions for the latest assistant turn.</summary>
+    public IReadOnlyList<SuggestedAction> SuggestedActions { get; private set; } = [];
     /// <summary>
     /// Gets or updates context tokens, the bindable or domain state represented by this property.
     /// </summary>
@@ -853,6 +859,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates dismiss inline question command, the bindable or domain state represented by this property.
     /// </summary>
     public RelayCommand DismissInlineQuestionCommand { get; }
+    /// <summary>Accepts one non-modal suggested action by loading its composer text.</summary>
+    public RelayCommand<string> AcceptSuggestedActionCommand { get; }
+    /// <summary>Dismisses the suggestion row without sending anything.</summary>
+    public RelayCommand DismissSuggestedActionsCommand { get; }
     /// <summary>
     /// Gets or updates enable computer use command, the bindable or domain state represented by this property.
     /// </summary>
@@ -1133,6 +1143,8 @@ public sealed class ChatPageViewModel : ObservableObject
         if (_preferences.AutoCompactContext && ContextPercent >= _preferences.CompactAtPercent)
             await CompactContextAsync(true);
         Composer = string.Empty;
+        SuggestedActions = [];
+        PendingPlanTitle = null;
         _sendCancellation = new CancellationTokenSource();
         IsSending = true;
         EditStep = 0;
@@ -2384,6 +2396,22 @@ public sealed class ChatPageViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException) { }
         }
+
+        var planArtifact = ChatPlanArtifact.TryParse(content);
+        if (planArtifact is not null && !HasInlineQuestion)
+        {
+            content = planArtifact.CleanedContent;
+            streaming.ReplaceContent(content);
+            PendingPlanTitle = planArtifact.Title;
+            InlineQuestion = new InlineQuestionViewModel("Approve this plan?", [ChatPlanArtifact.Options.Follow, ChatPlanArtifact.Options.Tweak, ChatPlanArtifact.Options.Reject]);
+        }
+
+        SuggestedActions = SuggestedActionEngine.ForTurn(
+            Messages.LastOrDefault(item => item.Role == MessageRole.User)?.Content ?? string.Empty,
+            content,
+            HasWorkspaceRoot,
+            _conversation.Mode == HavenMode.Study);
+
         var prompt = Messages.LastOrDefault(item => item.Role == MessageRole.User)?.Content ?? string.Empty;
         var score = ComputeConfidence(prompt, content, streaming.Activities, _preferences.GenerationOptions.Temperature);
         streaming.MarkComplete(_preferences.ConfidenceMeter ? score : null);
@@ -2433,8 +2461,36 @@ public sealed class ChatPageViewModel : ObservableObject
     private void AnswerInlineQuestion(string? answer)
     {
         if (string.IsNullOrWhiteSpace(answer)) return;
+        // Plan approval is consequence-specific: each decision drives a distinct continuation.
+        switch (answer)
+        {
+            case ChatPlanArtifact.Options.Follow:
+                InlineQuestion = null;
+                Composer = "Follow this plan and begin implementation now.";
+                if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
+                return;
+            case ChatPlanArtifact.Options.Tweak:
+                InlineQuestion = null;
+                Composer = "Adjust this plan: ";
+                Status = "Describe the change; Haven will produce a complete revised plan for approval.";
+                return;
+            case ChatPlanArtifact.Options.Reject:
+                InlineQuestion = null;
+                PendingPlanTitle = null;
+                Composer = "Reject this approach entirely. Reconsider the problem and propose a fundamentally different plan rather than tweaks.";
+                if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
+                return;
+        }
         Composer = answer;
         InlineQuestion = null;
+    }
+
+    /// <summary>Loads a suggested action into the composer without sending automatically.</summary>
+    private void AcceptSuggestedAction(string? composerText)
+    {
+        if (string.IsNullOrWhiteSpace(composerText)) return;
+        SuggestedActions = [];
+        Composer = composerText;
     }
 
     /// <summary>

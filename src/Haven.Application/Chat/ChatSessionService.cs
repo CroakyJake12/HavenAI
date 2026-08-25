@@ -33,7 +33,8 @@ public sealed class ChatSessionService(
     AutonomousRecoveryService? recovery = null,
     RemediationCoordinator? remediations = null,
     ModelPersonalityService? personalities = null,
-    ModelPermissionEvaluator? modelPermissions = null)
+    ModelPermissionEvaluator? modelPermissions = null,
+    IDefaultProviderStore? defaultProviders = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -280,6 +281,13 @@ public sealed class ChatSessionService(
             personalityDirective = ModelPersonalityPrompt.Describe(effectivePersonality);
         }
 
+        string? providerDefaultsDirective = null;
+        if (defaultProviders is not null)
+        {
+            var assignments = await defaultProviders.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            providerDefaultsDirective = DefaultProviderDirectives.Describe(assignments);
+        }
+
         using var computerPassCandidate = computerTools.CreatePass();
         var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
                 availableCapabilities ?? capabilities,
@@ -370,7 +378,8 @@ public sealed class ChatSessionService(
         var system = BuildSystemPrompt(
             conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
-            projectContext, projectInstructions, registeredContext, computerPass is not null, personalityDirective);
+            projectContext, projectInstructions, registeredContext, computerPass is not null, personalityDirective,
+            providerDefaultsDirective);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
         var toolActivities = new List<ToolActivity>();
@@ -1117,7 +1126,8 @@ public sealed class ChatSessionService(
         string? projectInstructions,
         string? registeredContext,
         bool computerUseEnabled,
-        string? personalityDirective = null)
+        string? personalityDirective = null,
+        string? providerDefaultsDirective = null)
     {
         var mode = conversation.Mode switch
         {
@@ -1162,6 +1172,8 @@ public sealed class ChatSessionService(
         {
             builder.Append("\nComputer Use is active and controls the real Windows desktop. Complete multi-step desktop requests with tools rather than treating the whole sentence as an application name. Use computer_launch_app with only the exact app name. Every mutation tool includes a post-action inspection in its result, so use that verification to choose the next step; call computer_snapshot or computer_list_windows separately only when more state is needed or a verification failed. Bind every input action to an exact visible target window and stop if verification fails.");
         }
+        if (!string.IsNullOrWhiteSpace(providerDefaultsDirective))
+            builder.Append('\n').Append(providerDefaultsDirective.Trim());
         builder.Append("\nWhen a short multiple-choice clarification is genuinely required, end with exactly one tag in this form: <haven-question>{\"question\":\"...\",\"options\":[\"First\",\"Second\"]}</haven-question>. Provide two or three mutually exclusive options and do not invent an Other option.");
         builder.Append("\nNever claim a tool or browser action happened unless a tool result confirms it.");
         return builder.ToString();

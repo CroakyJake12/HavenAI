@@ -5,7 +5,7 @@ public static class PromptCatalog
 {
     public static readonly IReadOnlyList<PromptDefinition> BuiltIns =
     [
-        BuiltIn("Plan", "Create a precise plan without making changes.", "plan", "Plan only. Inspect enough to remove uncertainty, identify acceptance checks, and do not modify files or perform irreversible actions.", agentic: true),
+        BuiltIn("Plan", "Create a precise plan without making changes.", "plan", "Plan only. Inspect enough to remove uncertainty, identify acceptance checks, and do not modify files or perform irreversible actions. End your plan with exactly one tag in this form: <haven-plan>concise plan title</haven-plan>. The user will approve, tweak or reject the plan before any implementation begins.", agentic: true),
         BuiltIn("Build", "Inspect enough, then implement and validate.", "build", "Do the minimum safe setup, implement the complete requested change, and validate it with real evidence.", agentic: true),
         BuiltIn("Debug", "Reproduce, isolate, fix, and verify a fault.", "debug", "Focus on the reported fault. Explain the error in plain English, point to its cause, reproduce it, make the smallest correct fix, and verify it.", agentic: true),
         BuiltIn("Production", "Finish the work to production quality.", "production", "Complete edge cases, tests, packaging, accessibility, rollback considerations, and honest validation before finishing.", agentic: true),
