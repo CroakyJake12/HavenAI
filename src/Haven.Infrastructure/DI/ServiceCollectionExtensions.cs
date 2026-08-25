@@ -73,6 +73,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExtensionRepository, ExtensionRepository>();
         services.AddSingleton<ExecutionEventHub>();
         services.AddSingleton<IExecutionEventSink>(provider => provider.GetRequiredService<ExecutionEventHub>());
+        services.AddSingleton<ITaskExecutionRepository, TaskExecutionRepository>();
         services.AddSingleton<ExecutionTraceService>();
         services.AddSingleton<AutonomousRecoveryService>();
         services.AddSingleton<RemediationContinuationRegistry>();
@@ -193,6 +194,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
         services.AddSingleton<ImagineGenerationCommand>();
         services.AddSingleton<RemediationCoordinator>();
+        services.AddSingleton<TaskExecutionCoordinator>();
         services.AddSingleton<IProjectPreviewProvider, WebProjectPreviewProvider>();
         services.AddSingleton<IModelProvider>(provider => new OllamaModelProvider(
             provider.GetRequiredService<ILocalOllamaClient>(),

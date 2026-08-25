@@ -96,3 +96,12 @@ public interface INativePluginProcessFactory
 {
     INativePluginProcess Create(InstalledExtensionPackage package);
 }
+
+/// <summary>Durable store for shared steer/queue execution snapshots.</summary>
+public interface ITaskExecutionRepository
+{
+    Task UpsertAsync(TaskExecutionSnapshot snapshot, CancellationToken cancellationToken);
+    Task<TaskExecutionSnapshot?> GetAsync(Guid taskId, CancellationToken cancellationToken);
+    Task<TaskExecutionSnapshot?> GetByContextAsync(Guid contextId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<TaskExecutionSnapshot>> GetResumableAsync(CancellationToken cancellationToken);
+}

@@ -886,6 +886,21 @@ internal static class Migrations
         new(23, """
             ALTER TABLE conversations ADD COLUMN space_id TEXT NULL;
             CREATE INDEX ix_conversations_space_updated ON conversations(space_id,updated_at DESC);
+        """),
+        new(24, """
+            CREATE TABLE task_execution_state(
+                task_id TEXT PRIMARY KEY,
+                context_id TEXT NOT NULL,
+                execution_id TEXT NOT NULL,
+                state INTEGER NOT NULL,
+                durability INTEGER NOT NULL,
+                plan_version INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_task_execution_context ON task_execution_state(context_id,updated_at DESC);
+            CREATE INDEX ix_task_execution_resumable ON task_execution_state(state,updated_at DESC);
         """)
     ];
 }

@@ -34,7 +34,11 @@ public enum ExecutionActionType
     UserActionRequired = 18,
     Warning = 19,
     Error = 20,
-    FinalResponse = 21
+    FinalResponse = 21,
+    Steer = 22,
+    Queue = 23,
+    Replan = 24,
+    Resume = 25
 }
 
 public enum ExecutionActionStatus
@@ -48,7 +52,9 @@ public enum ExecutionActionStatus
     Completed = 6,
     Failed = 7,
     Cancelled = 8,
-    Warning = 9
+    Warning = 9,
+    Superseded = 10,
+    PendingSafeBoundary = 11
 }
 
 /// <summary>A redacted failure safe to retain in history and telemetry.</summary>
