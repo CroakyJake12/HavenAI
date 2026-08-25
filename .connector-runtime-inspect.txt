@@ -1,0 +1,23 @@
+﻿---STATUS---
+## chatgpt/mcp-connector-finish-20260825
+---HEAD---
+856b29b57881ebe1f195428fcec7ef483f68cf0d
+---RUNTIME---
+src/Haven.Application/Agents/AgentTaskRuntimeService.cs:11:public sealed class AgentTaskRuntimeService(
+src/Haven.Desktop/App.axaml.cs:129:        collection.AddSingleton<AgentTaskRuntimeService>();
+src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:50:    private readonly AgentTaskRuntimeService? _agentRuntime;
+src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:217:        AgentTaskRuntimeService? agentRuntime = null)
+src/Haven.Desktop/Views/Pages/Catalog/AgentsHavenScene.cs:23:    private readonly AgentTaskRuntimeService? _runtime;
+src/Haven.Desktop/Views/Pages/Catalog/AgentsHavenScene.cs:29:    public AgentsHavenScene(CatalogPageViewModel viewModel, AgentTaskRuntimeService? runtime = null)
+src/Haven.Desktop/Views/Pages/Catalog/AgentsPage.cs:15:    public AgentsPage(CatalogPageViewModel viewModel, AgentTaskRuntimeService? runtime = null)
+---WORKSPACE---
+src/Haven.Application/Abstractions.cs:279:public interface IWorkspaceToolService
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:25:public sealed class WorkspaceToolRuntime(
+src/Haven.Infrastructure/Workspace/WorkspaceToolService.cs:19:public sealed class WorkspaceToolService : IWorkspaceToolService
+---BUILDTEST---
+src/Haven.Application/Abstractions.cs:149:    Task<ProcessResult> RunBuildAsync(string root, CancellationToken cancellationToken);
+src/Haven.Application/Abstractions.cs:150:    Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken);
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:111:                        "run_tests" => await RunTestsAsync(workspaceRoot, Text(call, "command"), Integer(call, "timeout_seconds", 600), cancellationToken).ConfigureAwait(false),
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:314:    private async Task<string> RunTestsAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
+src/Haven.Infrastructure/CodeIntelligence/ProjectIntelligenceService.cs:189:    public async Task<ProcessResult> RunBuildAsync(string root, CancellationToken cancellationToken)
+src/Haven.Infrastructure/CodeIntelligence/ProjectIntelligenceService.cs:201:    public Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken)

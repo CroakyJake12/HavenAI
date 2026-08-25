@@ -1,0 +1,7 @@
+﻿856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Application/Agents/AgentTaskRuntimeService.cs:11:public sealed class AgentTaskRuntimeService(
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/App.axaml.cs:129:        collection.AddSingleton<AgentTaskRuntimeService>();
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:50:    private readonly AgentTaskRuntimeService? _agentRuntime;
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:217:        AgentTaskRuntimeService? agentRuntime = null)
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/Views/Pages/Catalog/AgentsHavenScene.cs:23:    private readonly AgentTaskRuntimeService? _runtime;
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/Views/Pages/Catalog/AgentsHavenScene.cs:29:    public AgentsHavenScene(CatalogPageViewModel viewModel, AgentTaskRuntimeService? runtime = null)
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Desktop/Views/Pages/Catalog/AgentsPage.cs:15:    public AgentsPage(CatalogPageViewModel viewModel, AgentTaskRuntimeService? runtime = null)

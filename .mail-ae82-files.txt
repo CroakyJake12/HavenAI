@@ -1,0 +1,21 @@
+commit ae82bda6e500a1cad14245154bd55cb720b76e9b
+Author:     CroakyJake12 <jcbailey008@gmail.com>
+AuthorDate: Sun Aug 23 21:13:31 2026 +0100
+Commit:     CroakyJake12 <jcbailey008@gmail.com>
+CommitDate: Sun Aug 23 21:13:31 2026 +0100
+
+    fix(convergence): stabilize recovered products and projects IDE
+
+M	src/Haven.Application/Modes/BuiltInModeSeed.cs
+M	src/Haven.Desktop/Interface/Shell/MainView.Spaces.cs
+M	src/Haven.Desktop/Interface/Shell/MainView.axaml.cs
+M	src/Haven.Desktop/Views/Pages/Boards/BoardsPage.Attachments.cs
+M	src/Haven.Desktop/Views/Pages/Boards/BoardsPage.cs
+M	src/Haven.Desktop/Views/Pages/Mail/MailPage.axaml
+M	src/Haven.Desktop/Views/Pages/Present/PresentSlideCanvas.Structured.cs
+M	src/Haven.Desktop/Views/Pages/Present/PresentSlideCanvas.cs
+M	src/Haven.Desktop/Views/Pages/StudioProject/StudioProjectPage.SourceControl.cs
+M	src/Haven.Desktop/Views/Pages/WorkspaceEditor/WorkspaceEditorPage.LanguageServer.cs
+M	src/Haven.Infrastructure/Calendar/OAuthCalendarTransportBase.cs
+M	tests/Haven.Desktop.Tests/FileMailDraftStoreTests.cs
+M	tests/Haven.Desktop.Tests/PresentThumbnailNavigatorKeyboardTests.cs

@@ -1,0 +1,2 @@
+﻿856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Application/Abstractions.cs:481:public interface IAppDatabase
+856b29b57881ebe1f195428fcec7ef483f68cf0d:src/Haven.Application/Lifecycle/ApplicationLifecycleService.cs:31:public sealed class ApplicationLifecycleService : IApplicationLifecycle

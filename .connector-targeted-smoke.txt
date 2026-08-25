@@ -1,0 +1,37 @@
+﻿{
+    "health":  {
+                   "status":  "ok",
+                   "contractVersion":  "1",
+                   "machine":  "DESKTOP-7CHJ9S6",
+                   "utc":  "2026-08-25T20:51:01.5094534+00:00",
+                   "workspaceCount":  1,
+                   "capabilities":  {
+                                        "workspaceRead":  true,
+                                        "workspaceEdits":  true,
+                                        "transactionalChangeSets":  true,
+                                        "build":  true,
+                                        "tests":  true,
+                                        "gitRead":  true,
+                                        "arbitraryRootAccess":  false,
+                                        "arbitraryShell":  false
+                                    },
+                   "workspaces":  [
+                                      {
+                                          "key":  "haven-connector",
+                                          "displayName":  "Haven Connector Worktree",
+                                          "rootPath":  "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Haven-ChatGPT-Connector-20260825",
+                                          "approvedBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "currentBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "headSha":  "856b29b57881ebe1f195428fcec7ef483f68cf0d",
+                                          "gitRepository":  true,
+                                          "dirty":  true,
+                                          "branchMatches":  true,
+                                          "issue":  null
+                                      }
+                                  ]
+               },
+    "build":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Exit code: 0 | Duration: 0.9s\\r\\nSTDOUT:\\r\\n  Determining projects to restore...\\r\\n  All projects are up-to-date for restore.\\r\\n  Haven.Core -\\u003E C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\src\\\\Haven.Core\\\\bin\\\\Debug\\\\net10.0\\\\Haven.Core.dll\\r\\n\\r\\nBuild succeeded.\\r\\n    0 Warning(s)\\r\\n    0 Error(s)\\r\\n\\r\\nTime Elapsed 00:00:00.66\"}]},\"id\":20,\"jsonrpc\":\"2.0\"}\n\n",
+    "tests":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Exit code: 0 | Duration: 6.7s\\r\\nSTDOUT:\\r\\n  Determining projects to restore...\\r\\n  All projects are up-to-date for restore.\\r\\n  Haven.Core -\\u003E C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\src\\\\Haven.Core\\\\bin\\\\Debug\\\\net10.0\\\\Haven.Core.dll\\r\\n  Haven.Application -\\u003E C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\src\\\\Haven.Application\\\\bin\\\\Debug\\\\net10.0\\\\Haven.Application.dll\\r\\n  Haven.Infrastructure -\\u003E C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\src\\\\Haven.Infrastructure\\\\bin\\\\x64\\\\Debug\\\\net10.0\\\\Haven.Infrastructure.dll\\r\\n  Haven.Core.Tests -\\u003E C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\tests\\\\Haven.Core.Tests\\\\bin\\\\Debug\\\\net10.0\\\\Haven.Core.Tests.dll\\r\\nTest run for C:\\\\Users\\\\Jacob\\\\OneDrive\\\\Personal Files\\\\Development\\\\Haven-ChatGPT-Connector-20260825\\\\tests\\\\Haven.Core.Tests\\\\bin\\\\Debug\\\\net10.0\\\\Haven.Core.Tests.dll (.NETCoreApp,Version=v10.0)\\r\\nA total of 1 test files matched the specified pattern.\\r\\n\\r\\nPassed!  - Failed:     0, Passed:   520, Skipped:     0, Total:   520, Duration: 2 s - Haven.Core.Tests.dll (net10.0)\"}]},\"id\":21,\"jsonrpc\":\"2.0\"}\n\n",
+    "badExtension":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"An error occurred invoking \\u0027haven_build\\u0027.\"}],\"isError\":true},\"id\":22,\"jsonrpc\":\"2.0\"}\n\n",
+    "escapeTarget":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"An error occurred invoking \\u0027haven_build\\u0027.\"}],\"isError\":true},\"id\":23,\"jsonrpc\":\"2.0\"}\n\n"
+}

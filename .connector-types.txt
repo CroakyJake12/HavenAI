@@ -1,0 +1,27 @@
+﻿---OLLAMATOOLCALL---
+src/Haven.Application/Abstractions.cs:245:public sealed record OllamaToolCall(
+---PROCESSREQUEST---
+src/Haven.Application/Abstractions.cs:335:public sealed record ProcessRequest(string FileName, string Arguments, string WorkingDirectory, TimeSpan Timeout, IReadOnlyDictionary<string, string>? Environment = null, bool DetachGui = false);
+---WORKSPACE HISTORY DI---
+src/Haven.Desktop/App.axaml.cs:84:        collection.AddSingleton<WorkspaceToolRuntime>();
+src/Haven.Desktop/App.axaml.cs:93:            provider.GetRequiredService<WorkspaceToolRuntime>(),
+src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:52:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/Interface/Shell/MainView.axaml.cs:162:        IWorkspaceStateRepository workspaceState,
+src/Haven.Desktop/Interface/Shell/NativePresentation/NativeAutomationsPage.cs:19:    private readonly IWorkspaceStateRepository _tasks;
+src/Haven.Desktop/Interface/Shell/NativePresentation/NativeAutomationsPage.cs:41:        IWorkspaceStateRepository tasks,
+src/Haven.Desktop/ViewModels/ChatPageViewModel.cs:67:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/ViewModels/ChatPageViewModel.cs:232:        IWorkspaceStateRepository workspaceState,
+src/Haven.Desktop/ViewModels/WorkspaceSurfacesViewModels.cs:26:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/ViewModels/WorkspaceSurfacesViewModels.cs:33:        IAutomationRepository automations, IWorkspaceStateRepository workspaceState, IProjectIntelligenceService intelligence,
+src/Haven.Desktop/Views/Pages/Automations/AutomationsPage.axaml.cs:33:    private readonly IWorkspaceStateRepository _tasks;
+src/Haven.Desktop/Views/Pages/Automations/AutomationsPage.axaml.cs:95:        IWorkspaceStateRepository tasks,
+src/Haven.Desktop/Views/Pages/Chat/ChatPage.axaml.cs:43:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/Views/Pages/Chat/ChatPage.axaml.cs:111:        IWorkspaceStateRepository workspaceState,
+src/Haven.Desktop/Views/Pages/StudioProject/StudioProjectPage.axaml.cs:26:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/Views/Pages/StudioProject/StudioProjectPage.axaml.cs:67:        IWorkspaceStateRepository workspaceState,
+src/Haven.Desktop/Views/Pages/WorkspaceEditor/WorkspaceEditorPage.axaml.cs:21:    private readonly IWorkspaceStateRepository _history;
+src/Haven.Desktop/Views/Pages/WorkspaceEditor/WorkspaceEditorPage.axaml.cs:46:        IWorkspaceStateRepository history,
+src/Haven.Desktop/Views/Pages/WorkspaceHome/WorkspaceHomePage.axaml.cs:26:    private readonly IWorkspaceStateRepository _workspaceState;
+src/Haven.Desktop/Views/Pages/WorkspaceHome/WorkspaceHomePage.axaml.cs:44:        IWorkspaceStateRepository workspaceState,
+src/Haven.Infrastructure/DI/ServiceCollectionExtensions.cs:140:        services.AddSingleton<IWorkspaceStateRepository, WorkspaceStateRepository>();
+src/Haven.Infrastructure/Persistence/SQLite/WorkspaceStateRepository.cs:18:public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) : IWorkspaceStateRepository

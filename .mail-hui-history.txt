@@ -1,0 +1,5 @@
+ae82bda6e500a1cad14245154bd55cb720b76e9b 2026-08-23T21:13:31+01:00 fix(convergence): stabilize recovered products and projects IDE
+80f9424518e8b2cfbb33dce1893f041122eeba06 2026-08-23T19:59:51+01:00 snapshot(worker27): preserve durable Mail recovery
+6f87e388e1df924f8d223bc7ffdc31a1e52b7b5a 2026-08-23T19:59:51+01:00 snapshot(worker27): preserve durable Mail recovery
+8bdc802d9498ce2f0bcfd82366a10b22cab51afd 2026-08-21T15:19:56+01:00 feat(mail): add rich compose and parity actions
+6b7319bb5e0c4603ac85ae53bb7feb705f14bea1 2026-08-21T13:10:09+01:00 feat(mail): add connected mailbox

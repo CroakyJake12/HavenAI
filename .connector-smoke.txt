@@ -1,0 +1,39 @@
+﻿{
+    "health":  {
+                   "status":  "ok",
+                   "contractVersion":  "1",
+                   "machine":  "DESKTOP-7CHJ9S6",
+                   "utc":  "2026-08-25T20:37:27.9589461+00:00",
+                   "workspaceCount":  1,
+                   "capabilities":  {
+                                        "workspaceRead":  true,
+                                        "workspaceEdits":  true,
+                                        "transactionalChangeSets":  true,
+                                        "build":  true,
+                                        "tests":  true,
+                                        "gitRead":  true,
+                                        "arbitraryRootAccess":  false,
+                                        "arbitraryShell":  false
+                                    },
+                   "workspaces":  [
+                                      {
+                                          "key":  "haven-connector",
+                                          "displayName":  "Haven Connector Worktree",
+                                          "rootPath":  "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Haven-ChatGPT-Connector-20260825",
+                                          "approvedBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "currentBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "headSha":  "856b29b57881ebe1f195428fcec7ef483f68cf0d",
+                                          "gitRepository":  true,
+                                          "dirty":  true,
+                                          "branchMatches":  true,
+                                          "issue":  null
+                                      }
+                                  ]
+               },
+    "initializeStatus":  200,
+    "initializeContent":  "event: message\ndata: {\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"logging\":{},\"tools\":{}},\"serverInfo\":{\"name\":\"Haven.Connector\",\"version\":\"1.0.0.0\"}},\"id\":1,\"jsonrpc\":\"2.0\"}\n\n",
+    "toolsStatus":  200,
+    "toolsContent":  "event: message\ndata: {\"result\":{\"tools\":[{\"name\":\"haven_git_diff\",\"description\":\"Read the current unstaged or staged Git diff for one configured Haven connector workspace.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"staged\":{\"type\":\"boolean\",\"default\":false}},\"required\":[\"workspace\"]}},{\"name\":\"haven_apply_change_set\",\"description\":\"Apply a transactional multi-file Haven workspace change set. Haven rolls back earlier writes if a later write fails.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"changesJson\":{\"type\":\"string\"}},\"required\":[\"workspace\",\"changesJson\"]}},{\"name\":\"haven_write_file\",\"description\":\"Create or atomically replace a UTF-8 text file inside one configured Haven connector workspace.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"workspace\",\"path\",\"content\"]}},{\"name\":\"haven_run_tests\",\"description\":\"Detect and run the configured workspace\\u0027s tests using Haven\\u0027s existing bounded workspace runtime. This does not accept an arbitrary shell command.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"timeoutSeconds\":{\"type\":\"integer\",\"default\":900}},\"required\":[\"workspace\"]}},{\"name\":\"sandbox_operation\",\"description\":\"Compatibility bridge for a small read-only subset of the former Sandbox REST surface while ChatGPT refreshes to native haven_* tools.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"method\":{\"description\":\"GET, POST, PUT, or DELETE\",\"type\":\"string\"},\"path\":{\"description\":\"Supported compatibility path such as /health, /api/preflight, /api/workspace/files/read, or /api/workspace/files/search\",\"type\":\"string\"},\"json\":{\"description\":\"Optional JSON request body\",\"type\":[\"string\",\"null\"],\"default\":null}},\"required\":[\"method\",\"path\"]}},{\"name\":\"haven_preflight\",\"description\":\"Inspect the Haven connector, its allowlisted workspaces, actual Git branches, dirty state, and current commit before source work.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"haven_read_file\",\"description\":\"Read a UTF-8 text file from one configured Haven connector workspace.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"path\":{\"type\":\"string\"}},\"required\":[\"workspace\",\"path\"]}},{\"name\":\"haven_preview_change_set\",\"description\":\"Preflight a transactional multi-file Haven workspace change set without writing files.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"changesJson\":{\"type\":\"string\"}},\"required\":[\"workspace\",\"changesJson\"]}},{\"name\":\"haven_build\",\"description\":\"Build a configured Haven connector workspace with dotnet build. Configuration must be Debug or Release; no arbitrary shell command is accepted.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"configuration\":{\"type\":\"string\",\"default\":\"Debug\"},\"timeoutSeconds\":{\"type\":\"integer\",\"default\":900}},\"required\":[\"workspace\"]}},{\"name\":\"haven_list_files\",\"description\":\"List files and folders inside one configured Haven connector workspace. Paths are workspace-relative and cannot escape the configured root.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"path\":{\"type\":\"string\",\"default\":\".\"},\"maxDepth\":{\"type\":\"integer\",\"default\":5}},\"required\":[\"workspace\"]}},{\"name\":\"sandbox_preflight\",\"description\":\"Compatibility alias during migration from GPTRemote Sandbox. Returns Haven connector workspace and Git preflight state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"haven_replace_in_file\",\"description\":\"Replace exact text in a file inside one configured Haven connector workspace. Prefer this over whole-file replacement for focused edits.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"path\":{\"type\":\"string\"},\"oldText\":{\"type\":\"string\"},\"newText\":{\"type\":\"string\"},\"replaceAll\":{\"type\":\"boolean\",\"default\":false}},\"required\":[\"workspace\",\"path\",\"oldText\",\"newText\"]}},{\"name\":\"sandbox_project_contexts\",\"description\":\"Compatibility alias during migration from GPTRemote Sandbox. Returns configured Haven workspace branch state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"haven_search_files\",\"description\":\"Search text files inside one configured Haven connector workspace for a literal query.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"},\"query\":{\"type\":\"string\"},\"path\":{\"type\":\"string\",\"default\":\".\"},\"maxResults\":{\"type\":\"integer\",\"default\":100}},\"required\":[\"workspace\",\"query\"]}},{\"name\":\"haven_git_status\",\"description\":\"Read Git branch and working-tree status for one configured Haven connector workspace.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"workspace\":{\"type\":\"string\"}},\"required\":[\"workspace\"]}}]},\"id\":2,\"jsonrpc\":\"2.0\"}\n\n",
+    "dll":  "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Haven-ChatGPT-Connector-20260825\\src\\Haven.Connector\\bin\\x64\\Debug\\net10.0\\Haven.Connector.dll",
+    "pid":  79096
+}

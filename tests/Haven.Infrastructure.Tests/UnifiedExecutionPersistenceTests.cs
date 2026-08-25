@@ -13,7 +13,7 @@ public sealed class UnifiedExecutionPersistenceTests : IDisposable
     {
         var database = new SqliteDatabase(_paths);
         await database.InitializeAsync(CancellationToken.None);
-        Assert.Equal(23, Migrations.LatestVersion);
+        Assert.True(Migrations.LatestVersion >= 23, $"Migration 23 must remain part of the current schema; latest is {Migrations.LatestVersion}.");
         await using (var connection = await database.OpenAsync(CancellationToken.None))
         {
             await using var version = connection.CreateCommand();

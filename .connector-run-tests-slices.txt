@@ -1,0 +1,83 @@
+﻿---DEFINITION---
+        Definition("write_file", "Create or completely replace a UTF-8 text file in the selected workspace using an atomic write.",
+            new() { ["path"] = StringProperty("Workspace-relative file path."), ["content"] = StringProperty("Complete new file contents.") }, "path", "content"),
+        Definition("replace_in_file", "Replace exact text in a workspace file. Prefer this for focused edits.",
+            new() { ["path"] = StringProperty("Workspace-relative file path."), ["old_text"] = StringProperty("Exact text to replace."), ["new_text"] = StringProperty("Replacement text."), ["replace_all"] = BooleanProperty("Replace every match when true.") }, "path", "old_text", "new_text"),
+        Definition("preview_change_set", "Preflight a transactional multi-file change set without writing files. Returns hashes and line impact for review.",
+            new() { ["changes_json"] = StringProperty("JSON array of objects with path, content, and optional expectedSha256.") }, "changes_json"),
+        Definition("apply_change_set", "Apply a preflightable multi-file change set transactionally. If any write fails, earlier writes are rolled back.",
+            new() { ["changes_json"] = StringProperty("JSON array of objects with path, content, and optional expectedSha256.") }, "changes_json"),
+        Definition("run_command", "Run a PowerShell command in the selected workspace and return its exit code, output, and errors.",
+            new() { ["command"] = StringProperty("PowerShell command."), ["timeout_seconds"] = IntegerProperty("Timeout from 1 to 900 seconds.") }, "command"),
+        Definition("run_tests", "Detect and run this workspace's tests, or run a supplied test command.",
+            new() { ["command"] = StringProperty("Optional explicit PowerShell test command."), ["timeout_seconds"] = IntegerProperty("Timeout from 1 to 1800 seconds.") })
+    ];
+
+    /// <summary>
+    /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
+    public async Task<WorkspaceToolResult> ExecuteAsync(string workspaceRoot, OllamaToolCall call, CancellationToken cancellationToken, Guid? conversationId = null, Guid? containerId = null)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            IReadOnlyList<WorkspaceMutation> mutations = [];
+---IMPLEMENTATION---
+        catch (Exception ex)
+        {
+            commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, TerminalExecutionState.Failed, command, root, null, ex.Message, DateTimeOffset.UtcNow));
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Runs run tests async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
+    private async Task<string> RunTestsAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            command = Directory.EnumerateFiles(root, "*.sln", SearchOption.TopDirectoryOnly).Any() ? "dotnet test"
+                : File.Exists(Path.Combine(root, "package.json")) ? "npm test"
+                : File.Exists(Path.Combine(root, "go.mod")) ? "go test ./..."
+                : throw new InvalidOperationException("No supported test project was detected. Supply a test command.");
+        }
+        return await RunCommandAsync(root, command, Math.Clamp(timeoutSeconds, 1, 1800), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Performs the format process step owned by this component.
+    /// </summary>
+    private static string FormatProcess(ProcessResult result)
+    {
+        var builder = new StringBuilder();
+        builder.Append("Exit code: ").Append(result.ExitCode).Append(" ┬À Duration: ").Append(result.Duration.TotalSeconds.ToString("0.0")).AppendLine("s");
+        if (result.TimedOut) builder.AppendLine("Command timed out.");
+        if (!string.IsNullOrWhiteSpace(result.StandardOutput)) builder.AppendLine("STDOUT:").AppendLine(result.StandardOutput.TrimEnd());
+        if (!string.IsNullOrWhiteSpace(result.StandardError)) builder.AppendLine("STDERR:").AppendLine(result.StandardError.TrimEnd());
+        return builder.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Performs the definition step owned by this component.
+    /// </summary>
+    private static OllamaToolDefinition Definition(string name, string description, Dictionary<string, object> properties, params string[] required) => new(name, description, properties, required);
+    /// <summary>
+    /// Performs the string property step owned by this component.
+    /// </summary>
+    private static Dictionary<string, object> StringProperty(string description) => new() { ["type"] = "string", ["description"] = description };
+    /// <summary>
+    /// Performs the integer property step owned by this component.
+    /// </summary>
+    private static Dictionary<string, object> IntegerProperty(string description) => new() { ["type"] = "integer", ["description"] = description };
+    /// <summary>
+    /// Performs the boolean property step owned by this component.
+    /// </summary>
+    private static Dictionary<string, object> BooleanProperty(string description) => new() { ["type"] = "boolean", ["description"] = description };
+
+    /// <summary>
+    /// Performs the required text step owned by this component.
+    /// </summary>
+    private static string RequiredText(OllamaToolCall call, string key)
+    {
+        var value = Text(call, key);

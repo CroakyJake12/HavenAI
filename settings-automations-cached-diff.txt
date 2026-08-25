@@ -1,0 +1,238 @@
+﻿diff --git a/src/Haven.Desktop/Views/Pages/Automations/AutomationsHavenScene.cs b/src/Haven.Desktop/Views/Pages/Automations/AutomationsHavenScene.cs
+index ea52d85..c3819d0 100644
+--- a/src/Haven.Desktop/Views/Pages/Automations/AutomationsHavenScene.cs
++++ b/src/Haven.Desktop/Views/Pages/Automations/AutomationsHavenScene.cs
+@@ -19,7 +19,7 @@ internal sealed record AutomationsRunCard(
+ /// <summary>All visible Automations UI. Avalonia only hosts this scene through one HavenSceneControl.</summary>
+ internal sealed partial class AutomationsHavenScene : IDisposable
+ {
+-    private enum DashboardSection { Running, History, Workflows }
++    private enum DashboardSection { Running, Scheduled, Library, History }
+ 
+     private readonly List<AutomationsWorkflowCard> _workflows = [];
+     private readonly List<AutomationsScheduledCard> _scheduled = [];
+@@ -58,7 +58,9 @@ internal sealed partial class AutomationsHavenScene : IDisposable
+     public Container DashboardContent { get; private set; } = null!;
+     public HavenButton RunningTab { get; private set; } = null!;
+     public HavenButton HistoryTab { get; private set; } = null!;
+-    public HavenButton WorkflowsTab { get; private set; } = null!;
++    public HavenButton ScheduledTab { get; private set; } = null!;
++    public HavenButton LibraryTab { get; private set; } = null!;
++    public HavenButton WorkflowsTab => LibraryTab;
+ 
+     public event EventHandler? RefreshRequested;
+     public event EventHandler? OpenTasksRequested;
+@@ -135,11 +137,12 @@ internal sealed partial class AutomationsHavenScene : IDisposable
+         tabs.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+         RunningTab = ActionButton("Automations.Tab.Running", "Running", ButtonVariant.Primary, (_, _) => SelectSection(DashboardSection.Running));
+         HistoryTab = ActionButton("Automations.Tab.History", "History", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.History));
+-        WorkflowsTab = ActionButton("Automations.Tab.Workflows", "Reusable workflows", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Workflows));
+-        tabs.Add(RunningTab); tabs.Add(HistoryTab); tabs.Add(WorkflowsTab);
++        ScheduledTab = ActionButton("Automations.Tab.Scheduled", "Scheduled", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Scheduled));
++        LibraryTab = ActionButton("Automations.Tab.Library", "Library", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Library));
++        tabs.Add(RunningTab); tabs.Add(ScheduledTab); tabs.Add(LibraryTab); tabs.Add(HistoryTab);
+         layer.Add(tabs);
+ 
+-        SearchInput = new Input { Name = "Automations.Search", Placeholder = "Search workflows and runs" };
++        SearchInput = new Input { Name = "Automations.Search", Placeholder = "Search workflows, schedules and runs" };
+         SearchInput.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+         SearchInput.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
+         SearchInput.Invalidated += OnSearchInvalidated;
+@@ -167,7 +170,8 @@ internal sealed partial class AutomationsHavenScene : IDisposable
+         if (DashboardContent is null) return;
+         RunningTab.Variant = _section == DashboardSection.Running ? ButtonVariant.Primary : ButtonVariant.Tertiary;
+         HistoryTab.Variant = _section == DashboardSection.History ? ButtonVariant.Primary : ButtonVariant.Tertiary;
+-        WorkflowsTab.Variant = _section == DashboardSection.Workflows ? ButtonVariant.Primary : ButtonVariant.Tertiary;
++        ScheduledTab.Variant = _section == DashboardSection.Scheduled ? ButtonVariant.Primary : ButtonVariant.Tertiary;
++        LibraryTab.Variant = _section == DashboardSection.Library ? ButtonVariant.Primary : ButtonVariant.Tertiary;
+         Clear(DashboardContent);
+ 
+         switch (_section)
+@@ -175,11 +179,14 @@ internal sealed partial class AutomationsHavenScene : IDisposable
+             case DashboardSection.Running:
+                 RenderRunning();
+                 break;
+-            case DashboardSection.History:
+-                RenderHistory();
++            case DashboardSection.Scheduled:
++                RenderScheduled();
++                break;
++            case DashboardSection.Library:
++                RenderLibrary();
+                 break;
+             default:
+-                RenderWorkflows();
++                RenderHistory();
+                 break;
+         }
+     }
+@@ -207,19 +214,30 @@ internal sealed partial class AutomationsHavenScene : IDisposable
+             DashboardContent.Add(EmptyCard("Automations.History.Empty", "No run history yet", "Test or run a graph and its real result will appear here."));
+     }
+ 
+-    private void RenderWorkflows()
++    private void RenderScheduled()
++    {
++        DashboardContent.Add(Heading("Automations.Scheduled.Title", "Scheduled automations", TextLevel.H2));
++        var scheduledWorkflows = _workflows.Where(item => item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
++        var scheduledOnly = _scheduled.Where(item => !_workflows.Any(workflow => workflow.Id == item.Id) && Matches(item.Name, item.Detail)).OrderBy(item => item.Name).ToArray();
++
++        foreach (var item in scheduledWorkflows) DashboardContent.Add(BuildWorkflowCard(item));
++        foreach (var item in scheduledOnly) DashboardContent.Add(BuildScheduledCard(item));
++
++        if (scheduledWorkflows.Length == 0 && scheduledOnly.Length == 0)
++            DashboardContent.Add(EmptyCard("Automations.Scheduled.Empty", "Nothing is scheduled", "Workflows with real schedules or triggers will appear here."));
++    }
++
++    private void RenderLibrary()
+     {
+-        DashboardContent.Add(Heading("Automations.Workflows.Title", "Reusable workflows", TextLevel.H2));
++        DashboardContent.Add(Heading("Automations.Library.Title", "Workflow library", TextLevel.H2));
+         var manual = _workflows.Where(item => !item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
+         var automatic = _workflows.Where(item => item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
+-        var scheduledOnly = _scheduled.Where(item => !_workflows.Any(workflow => workflow.Id == item.Id) && Matches(item.Name, item.Detail)).ToArray();
+ 
+         RenderWorkflowGroup("Manual workflows", manual);
+-        RenderWorkflowGroup("Scheduled automations", automatic);
+-        foreach (var item in scheduledOnly) DashboardContent.Add(BuildScheduledCard(item));
++        RenderWorkflowGroup("Scheduled workflows", automatic);
+ 
+-        if (manual.Length == 0 && automatic.Length == 0 && scheduledOnly.Length == 0)
+-            DashboardContent.Add(EmptyCard("Automations.Workflows.Empty", "No workflows found", "Create a workflow, add nodes, connect them, then test and save it."));
++        if (manual.Length == 0 && automatic.Length == 0)
++            DashboardContent.Add(EmptyCard("Automations.Library.Empty", "No workflows found", "Create a workflow, add nodes, connect them, then test and save it."));
+     }
+ 
+     private void RenderWorkflowGroup(string title, IReadOnlyList<AutomationsWorkflowCard> items)
+diff --git a/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenPage.axaml.cs b/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenPage.axaml.cs
+index c67028a..ea49932 100644
+--- a/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenPage.axaml.cs
++++ b/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenPage.axaml.cs
+@@ -103,6 +103,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
+         _route.AppearanceSelect.SelectionChanged += (_, _) => ApplyAppearance();
+         _route.DefaultTabSelect.SelectionChanged += (_, _) => SaveDefaultTab();
+         _route.ThemeSelect.SelectionChanged += (_, _) => ApplyThemeChoice();
++        _route.FontSelect.SelectionChanged += (_, _) => ApplyFontChoice();
+         _route.AccentOverrideToggle.CheckedChanged += (_, _) => ApplyAccentOverrideToggle();
+         foreach (var swatch in _route.AccentSwatchButtons)
+         {
+diff --git a/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenScene.cs b/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenScene.cs
+index 8c2fd79..cead285 100644
+--- a/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenScene.cs
++++ b/src/Haven.Desktop/Views/Pages/Settings/SettingsHavenScene.cs
+@@ -18,7 +18,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
+     [
+         new("home", "Settings", "Search Haven settings or choose a category.", ["settings", "home"]),
+         new("models", "AI & Models", "Local models, defaults, residency, installation and removal.", ["ai", "model", "models", "ollama", "install", "download", "residency", "effort", "fallback", "priority", "personality", "nickname", "override", "governance", "provider"]),
+-        new("appearance", "Personalisation", "Default tab, colour appearance and accessibility preferences.", ["personalisation", "default", "tab", "appearance", "theme", "dark", "bright", "motion", "animation", "accessibility"]),
++        new("appearance", "Personalisation", "Default tab, colour appearance and accessibility preferences.", ["personalisation", "default", "tab", "appearance", "theme", "dark", "bright", "font", "accent", "colour", "color", "avatar", "profile", "picture", "motion", "animation", "accessibility"]),
+         new("apps", "Chat & Apps", "Chat behaviour, context management and app assistance preferences.", ["chat", "apps", "agentic", "confidence", "compact", "browser", "auto"]),
+         new("permissions", "Permissions & Sandboxing", "File, command, browser and device-use permission defaults.", ["permission", "permissions", "sandbox", "file", "command", "browser", "device", "computer", "tool"]),
+         new("integrations", "Integrations", "Provider connections and external model integrations.", ["integration", "provider", "connection", "api", "key", "cloud"]),
+diff --git a/tests/Haven.Desktop.Tests/AutomationsDashboardSectionsTests.cs b/tests/Haven.Desktop.Tests/AutomationsDashboardSectionsTests.cs
+new file mode 100644
+index 0000000..5d362dc
+--- /dev/null
++++ b/tests/Haven.Desktop.Tests/AutomationsDashboardSectionsTests.cs
+@@ -0,0 +1,44 @@
++using System.Reflection;
++using Haven.Desktop.Views.Pages.Automations;
++using Haven.UI;
++
++namespace Haven.Desktop.Tests;
++
++public sealed class AutomationsDashboardSectionsTests
++{
++    [Fact]
++    public void Scheduled_and_library_sections_keep_real_sources_distinct()
++    {
++        using var scene = new AutomationsHavenScene();
++        var manualId = Guid.NewGuid();
++        var scheduledId = Guid.NewGuid();
++        var scheduledOnlyId = Guid.NewGuid();
++
++        scene.SetDashboardData(
++            [
++                new AutomationsWorkflowCard(manualId, "Manual review", "Manual", true, false, string.Empty),
++                new AutomationsWorkflowCard(scheduledId, "Scheduled review", "Scheduled", true, true, "Next tomorrow")
++            ],
++            [new AutomationsScheduledCard(scheduledOnlyId, "Repository schedule", "Next tomorrow", true)],
++            [],
++            []);
++
++        Invoke(scene.Root, "Automations.Tab.Scheduled");
++        Assert.DoesNotContain(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Workflow.{manualId:N}");
++        Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Workflow.{scheduledId:N}");
++        Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Scheduled.{scheduledOnlyId:N}");
++
++        Invoke(scene.Root, "Automations.Tab.Library");
++        Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Workflow.{manualId:N}");
++        Assert.Contains(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Workflow.{scheduledId:N}");
++        Assert.DoesNotContain(scene.Root.DescendantsAndSelf(), element => element.Name == $"Automations.Scheduled.{scheduledOnlyId:N}");
++    }
++
++    private static void Invoke(HavenElement root, string name)
++    {
++        var element = Assert.Single(root.DescendantsAndSelf(), candidate => candidate.Name == name);
++        var method = typeof(HavenElement).GetMethod("Invoke", BindingFlags.Instance | BindingFlags.NonPublic);
++        Assert.NotNull(method);
++        method.Invoke(element, null);
++    }
++}
+diff --git a/tests/Haven.Desktop.Tests/NativeAutomationsPageTests.cs b/tests/Haven.Desktop.Tests/NativeAutomationsPageTests.cs
+index ac6492e..44fec57 100644
+--- a/tests/Haven.Desktop.Tests/NativeAutomationsPageTests.cs
++++ b/tests/Haven.Desktop.Tests/NativeAutomationsPageTests.cs
+@@ -37,7 +37,7 @@ public sealed class NativeAutomationsPageTests
+         scene.DeleteWorkflowRequested += value => delete = value;
+         scene.SetWorkflowEnabledRequested += (value, state) => enabled = (value, state);
+ 
+-        Invoke(scene.Root, "Automations.Tab.Workflows");
++        Invoke(scene.Root, "Automations.Tab.Library");
+         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Run");
+         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Test");
+         Invoke(scene.Root, $"Automations.Workflow.{id:N}.Edit");
+@@ -119,7 +119,7 @@ public sealed class NativeAutomationsPageTests
+             Assert.Contains(persisted.Nodes, node => node.Id == triggerId);
+             Assert.Contains(persisted.Nodes, node => node.Id == emitId);
+ 
+-            Invoke(page.Scene.Root, "Automations.Tab.Workflows");
++            Invoke(page.Scene.Root, "Automations.Tab.Library");
+             await WaitUntilAsync(() => page.Scene.Root.DescendantsAndSelf().Any(element => element.Name == $"Automations.Workflow.{saved.Id:N}.Edit"));
+             Invoke(page.Scene.Root, $"Automations.Workflow.{saved.Id:N}.Edit");
+ 
+@@ -156,7 +156,7 @@ public sealed class NativeAutomationsPageTests
+         {
+             window.Show();
+             await WaitUntilAsync(() => page.Scene.StatusText.Content.Contains("1 reusable workflow", StringComparison.Ordinal));
+-            Invoke(page.Scene.Root, "Automations.Tab.Workflows");
++            Invoke(page.Scene.Root, "Automations.Tab.Library");
+             Invoke(page.Scene.Root, $"Automations.Workflow.{workflowId:N}.Enabled");
+ 
+             await WaitUntilAsync(() => tasks.Items.Single().IsEnabled == false && automations.Items.Single().IsEnabled == false);
+diff --git a/tests/Haven.Desktop.Tests/SettingsPersonalisationSearchTests.cs b/tests/Haven.Desktop.Tests/SettingsPersonalisationSearchTests.cs
+new file mode 100644
+index 0000000..efe51af
+--- /dev/null
++++ b/tests/Haven.Desktop.Tests/SettingsPersonalisationSearchTests.cs
+@@ -0,0 +1,20 @@
++using Haven.Desktop.Views.Pages.Settings;
++
++namespace Haven.Desktop.Tests;
++
++public sealed class SettingsPersonalisationSearchTests
++{
++    [Theory]
++    [InlineData("font")]
++    [InlineData("accent colour")]
++    [InlineData("profile picture")]
++    public void Personalisation_search_routes_to_real_customisation_controls(string query)
++    {
++        using var scene = new SettingsHavenScene();
++        scene.SearchInput.Text = query;
++
++        Assert.True(scene.RunSearch());
++        Assert.Equal("appearance", scene.ActiveSection);
++        Assert.Equal("Personalisation", scene.PageTitle.Content);
++    }
++}

@@ -1,0 +1,16 @@
+﻿STATUS
+M  src/Haven.Desktop/Views/Pages/Automations/AutomationsHavenScene.cs
+M  src/Haven.Desktop/Views/Pages/Settings/SettingsHavenPage.axaml.cs
+M  src/Haven.Desktop/Views/Pages/Settings/SettingsHavenScene.cs
+A  tests/Haven.Desktop.Tests/AutomationsDashboardSectionsTests.cs
+M  tests/Haven.Desktop.Tests/NativeAutomationsPageTests.cs
+A  tests/Haven.Desktop.Tests/SettingsPersonalisationSearchTests.cs
+STAT
+ .../Pages/Automations/AutomationsHavenScene.cs     | 50 +++++++++++++++-------
+ .../Pages/Settings/SettingsHavenPage.axaml.cs      |  1 +
+ .../Views/Pages/Settings/SettingsHavenScene.cs     |  2 +-
+ .../AutomationsDashboardSectionsTests.cs           | 44 +++++++++++++++++++
+ .../NativeAutomationsPageTests.cs                  |  6 +--
+ .../SettingsPersonalisationSearchTests.cs          | 20 +++++++++
+ 6 files changed, 103 insertions(+), 20 deletions(-)
+TESTS total=15 executed=15 passed=15 failed=0

@@ -1,0 +1,15 @@
+﻿  Determining projects to restore...
+  Restored C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Application\Haven.Application.csproj (in 70 ms).
+  Restored C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Core\Haven.Core.csproj (in 66 ms).
+  Restored C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Infrastructure\Haven.Infrastructure.csproj (in 185 ms).
+  Restored C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\Haven.Connector.csproj (in 995 ms).
+  Haven.Core -> C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Core\bin\x64\Debug\net10.0\Haven.Core.dll
+  Haven.Application -> C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Application\bin\x64\Debug\net10.0\Haven.Application.dll
+  Haven.Infrastructure -> C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Infrastructure\bin\x64\Debug\net10.0\Haven.Infrastructure.dll
+  Haven.Connector -> C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\bin\x64\Debug\net10.0\Haven.Connector.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:12.91

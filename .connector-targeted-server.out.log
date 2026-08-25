@@ -1,0 +1,95 @@
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:7152
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://127.0.0.1:7152/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'HTTP: GET /health'
+info: Microsoft.AspNetCore.Http.Result.OkObjectResult[1]
+      Setting HTTP status code 200.
+info: Microsoft.AspNetCore.Http.Result.OkObjectResult[3]
+      Writing value of type '<>f__AnonymousType3`7' as Json.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'HTTP: GET /health'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://127.0.0.1:7152/health - 200 - application/json;+charset=utf-8 239.0977ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 212
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_build" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 881.0829ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 967.2508ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 230
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_run_tests" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 6665.0306ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 6665.7804ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 168
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+fail: ModelContextProtocol.Server.McpServer[1433779783]
+      "haven_build" threw an unhandled exception.
+      System.ArgumentException: target must reference a .sln, .slnx, or .csproj inside the configured workspace. (Parameter 'target')
+         at Haven.Connector.HavenMcpTools.ResolveDotNetTarget(IWorkspaceToolService tools, String root, String target, String parameterName) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\HavenMcpTools.cs:line 284
+         at Haven.Connector.HavenMcpTools.Build(ConnectorWorkspaceRegistry registry, IWorkspaceToolService tools, String workspace, String target, String configuration, Int32 timeoutSeconds, CancellationToken cancellationToken) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\HavenMcpTools.cs:line 169
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunctionDescriptor.<>c__DisplayClass41_1.<<GetReturnParameterMarshaller>b__10>d.MoveNext()
+      --- End of stack trace from previous location ---
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.AIFunctionMcpServerTool.InvokeAsync(RequestContext`1 request, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.McpServerImpl.<>c__DisplayClass85_1.<<BuildComposedCallToolHandler>g__InvokeOrdinaryPipelineAsync|1>d.MoveNext()
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 14.6577ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 15.3934ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 177
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+fail: ModelContextProtocol.Server.McpServer[1433779783]
+      "haven_build" threw an unhandled exception.
+      System.UnauthorizedAccessException: The requested path is outside the selected workspace.
+         at Haven.Infrastructure.WorkspaceToolService.ResolveWorkspacePath(String workspaceRoot, String relativePath) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Infrastructure\Workspace\WorkspaceToolService.cs:line 47
+         at Haven.Connector.HavenMcpTools.ResolveDotNetTarget(IWorkspaceToolService tools, String root, String target, String parameterName) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\HavenMcpTools.cs:line 276
+         at Haven.Connector.HavenMcpTools.Build(ConnectorWorkspaceRegistry registry, IWorkspaceToolService tools, String workspace, String target, String configuration, Int32 timeoutSeconds, CancellationToken cancellationToken) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\HavenMcpTools.cs:line 169
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunctionDescriptor.<>c__DisplayClass41_1.<<GetReturnParameterMarshaller>b__10>d.MoveNext()
+      --- End of stack trace from previous location ---
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.AIFunctionMcpServerTool.InvokeAsync(RequestContext`1 request, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.McpServerImpl.<>c__DisplayClass85_1.<<BuildComposedCallToolHandler>g__InvokeOrdinaryPipelineAsync|1>d.MoveNext()
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 1.7313ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 2.4279ms

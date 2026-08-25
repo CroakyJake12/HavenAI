@@ -1,0 +1,41 @@
+﻿{
+    "health":  {
+                   "status":  "ok",
+                   "contractVersion":  "1",
+                   "machine":  "DESKTOP-7CHJ9S6",
+                   "utc":  "2026-08-25T20:44:24.3635303+00:00",
+                   "workspaceCount":  1,
+                   "capabilities":  {
+                                        "workspaceRead":  true,
+                                        "workspaceEdits":  true,
+                                        "transactionalChangeSets":  true,
+                                        "build":  true,
+                                        "tests":  true,
+                                        "gitRead":  true,
+                                        "arbitraryRootAccess":  false,
+                                        "arbitraryShell":  false
+                                    },
+                   "workspaces":  [
+                                      {
+                                          "key":  "haven-connector",
+                                          "displayName":  "Haven Connector Worktree",
+                                          "rootPath":  "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Haven-ChatGPT-Connector-20260825",
+                                          "approvedBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "currentBranch":  "chatgpt/mcp-connector-finish-20260825",
+                                          "headSha":  "856b29b57881ebe1f195428fcec7ef483f68cf0d",
+                                          "gitRepository":  true,
+                                          "dirty":  true,
+                                          "branchMatches":  true,
+                                          "issue":  null
+                                      }
+                                  ]
+               },
+    "unauthorizedStatus":  401,
+    "preflight":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\r\\n  \\u0022status\\u0022: \\u0022ok\\u0022,\\r\\n  \\u0022contractVersion\\u0022: \\u00221\\u0022,\\r\\n  \\u0022machine\\u0022: \\u0022DESKTOP-7CHJ9S6\\u0022,\\r\\n  \\u0022utc\\u0022: \\u00222026-08-25T20:44:24.5043488\\u002B00:00\\u0022,\\r\\n  \\u0022configurationPath\\u0022: \\u0022C:\\\\\\\\Users\\\\\\\\Jacob\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\haven-connector-readwrite-workspaces.json\\u0022,\\r\\n  \\u0022workspaces\\u0022: [\\r\\n    {\\r\\n      \\u0022key\\u0022: \\u0022haven-connector\\u0022,\\r\\n      \\u0022displayName\\u0022: \\u0022Haven Connector Worktree\\u0022,\\r\\n      \\u0022rootPath\\u0022: \\u0022C:\\\\\\\\Users\\\\\\\\Jacob\\\\\\\\OneDrive\\\\\\\\Personal Files\\\\\\\\Development\\\\\\\\Haven-ChatGPT-Connector-20260825\\u0022,\\r\\n      \\u0022approvedBranch\\u0022: \\u0022chatgpt/mcp-connector-finish-20260825\\u0022,\\r\\n      \\u0022currentBranch\\u0022: \\u0022chatgpt/mcp-connector-finish-20260825\\u0022,\\r\\n      \\u0022headSha\\u0022: \\u0022856b29b57881ebe1f195428fcec7ef483f68cf0d\\u0022,\\r\\n      \\u0022gitRepository\\u0022: true,\\r\\n      \\u0022dirty\\u0022: true,\\r\\n      \\u0022branchMatches\\u0022: true,\\r\\n      \\u0022issue\\u0022: null\\r\\n    }\\r\\n  ],\\r\\n  \\u0022selectionRule\\u0022: \\u0022Use only a configured workspace key. Do not infer or supply arbitrary filesystem roots.\\u0022\\r\\n}\"}]},\"id\":10,\"jsonrpc\":\"2.0\"}\n\n",
+    "write":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Wrote .haven-connector-mcp-smoke.txt (26 characters, \\u002B0/-0 lines).\"}]},\"id\":11,\"jsonrpc\":\"2.0\"}\n\n",
+    "readBack":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Haven MCP write smoke test\"}]},\"id\":12,\"jsonrpc\":\"2.0\"}\n\n",
+    "badWorkspace":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"An error occurred invoking \\u0027haven_read_file\\u0027.\"}],\"isError\":true},\"id\":13,\"jsonrpc\":\"2.0\"}\n\n",
+    "escapeAttempt":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Tool error: The requested path is outside the selected workspace.\"}]},\"id\":14,\"jsonrpc\":\"2.0\"}\n\n",
+    "compatPreflight":  "event: message\ndata: {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\r\\n  \\u0022status\\u0022: \\u0022ok\\u0022,\\r\\n  \\u0022contractVersion\\u0022: \\u00221\\u0022,\\r\\n  \\u0022machine\\u0022: \\u0022DESKTOP-7CHJ9S6\\u0022,\\r\\n  \\u0022utc\\u0022: \\u00222026-08-25T20:44:24.7101477\\u002B00:00\\u0022,\\r\\n  \\u0022configurationPath\\u0022: \\u0022C:\\\\\\\\Users\\\\\\\\Jacob\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\haven-connector-readwrite-workspaces.json\\u0022,\\r\\n  \\u0022workspaces\\u0022: [\\r\\n    {\\r\\n      \\u0022key\\u0022: \\u0022haven-connector\\u0022,\\r\\n      \\u0022displayName\\u0022: \\u0022Haven Connector Worktree\\u0022,\\r\\n      \\u0022rootPath\\u0022: \\u0022C:\\\\\\\\Users\\\\\\\\Jacob\\\\\\\\OneDrive\\\\\\\\Personal Files\\\\\\\\Development\\\\\\\\Haven-ChatGPT-Connector-20260825\\u0022,\\r\\n      \\u0022approvedBranch\\u0022: \\u0022chatgpt/mcp-connector-finish-20260825\\u0022,\\r\\n      \\u0022currentBranch\\u0022: \\u0022chatgpt/mcp-connector-finish-20260825\\u0022,\\r\\n      \\u0022headSha\\u0022: \\u0022856b29b57881ebe1f195428fcec7ef483f68cf0d\\u0022,\\r\\n      \\u0022gitRepository\\u0022: true,\\r\\n      \\u0022dirty\\u0022: true,\\r\\n      \\u0022branchMatches\\u0022: true,\\r\\n      \\u0022issue\\u0022: null\\r\\n    }\\r\\n  ],\\r\\n  \\u0022selectionRule\\u0022: \\u0022Use only a configured workspace key. Do not infer or supply arbitrary filesystem roots.\\u0022\\r\\n}\"}]},\"id\":15,\"jsonrpc\":\"2.0\"}\n\n",
+    "smokeFileExistsBeforeCleanup":  true
+}

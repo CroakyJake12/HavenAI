@@ -1,0 +1,117 @@
+﻿public sealed record OllamaToolDefinition(
+    string Name,
+    string Description,
+    IReadOnlyDictionary<string, object> Properties,
+    IReadOnlyList<string> Required,
+    System.Text.Json.JsonElement? InputSchema = null);
+
+/// <summary>
+/// Represents ollama tool call and keeps its related state and behavior together.
+/// </summary>
+public sealed record OllamaToolCall(
+    string Name,
+    IReadOnlyDictionary<string, System.Text.Json.JsonElement> Arguments,
+    string? Id = null);
+
+/// <summary>
+/// Represents ollama tool turn and keeps its related state and behavior together.
+/// </summary>
+public sealed record OllamaToolTurn(
+    string Role,
+    string Content,
+    IReadOnlyList<OllamaToolCall>? ToolCalls = null,
+    string? ToolName = null,
+    IReadOnlyList<string>? Images = null);
+
+/// <summary>
+/// Represents ollama tool request and keeps its related state and behavior together.
+/// </summary>
+public sealed record OllamaToolRequest(
+    string Model,
+    IReadOnlyList<OllamaToolTurn> Messages,
+    IReadOnlyList<OllamaToolDefinition> Tools,
+    EffortLevel Effort,
+    string? SystemPrompt = null,
+    GenerationOptions? Options = null);
+
+/// <summary>
+/// Represents ollama tool response and keeps its related state and behavior together.
+/// </summary>
+public sealed record OllamaToolResponse(string Content, IReadOnlyList<OllamaToolCall> ToolCalls);
+
+/// <summary>
+/// Defines the workspace tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
+public interface IWorkspaceToolService
+{
+    string ResolveWorkspacePath(string workspaceRoot, string relativePath);
+    Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken);
+    Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken);
+    Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Represents bounded selection and focused-control context captured from the foreground desktop.
+/// </summary>
+public sealed record ComputerSelectionSnapshot(
+    string? SelectedText, string? SourceApplication, string? SourceWindow,
+    double? X, double? Y, double? Width, double? Height,
+    string? AccessibleName, string? AutomationId, string? ControlType,
+    bool? IsEnabled, bool? IsSelected, DateTimeOffset CapturedAt, bool WasTruncated);
+
+/// <summary>
+/// Defines the computer tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
+public interface IComputerToolService
+{
+    Task<ComputerSelectionSnapshot?> GetSelectionSnapshotAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<ComputerSelectionSnapshot?>(null);
+    Task<string> SnapshotAsync(CancellationToken cancellationToken);
+    Task<string> ListWindowsAsync(CancellationToken cancellationToken);
+    Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken);
+    Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken);
+    Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken);
+    Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken);
+    Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken);
+    Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken);
+    Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Defines the browser tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
+public interface IBrowserToolService
+{
+    bool IsInteractiveAvailable => false;
+    Task<string> NavigateAsync(string address, CancellationToken cancellationToken);
+    Task<string> BackAsync(CancellationToken cancellationToken);
+    Task<string> ForwardAsync(CancellationToken cancellationToken);
+    Task<string> ReloadAsync(bool clearSiteCache, CancellationToken cancellationToken);
+    Task<string> ReadVisibleTextAsync(CancellationToken cancellationToken);
+    Task<string> ClickAsync(string selector, CancellationToken cancellationToken);
+    Task<string> ClickTextAsync(string text, CancellationToken cancellationToken);
+    Task<string> FillAsync(string selector, string value, CancellationToken cancellationToken);
+    Task<string> ScrollAsync(double x, double y, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Represents process request and keeps its related state and behavior together.
+/// </summary>
+public sealed record ProcessRequest(string FileName, string Arguments, string WorkingDirectory, TimeSpan Timeout, IReadOnlyDictionary<string, string>? Environment = null, bool DetachGui = false);
+/// <summary>
+/// Represents process result and keeps its related state and behavior together.
+/// </summary>
+public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError, TimeSpan Duration, bool TimedOut);
+
+/// <summary>
+/// Defines the legacy state migrator contract so callers depend on a capability rather than one implementation.
+/// </summary>
+public interface ILegacyStateMigrator
+{
+    Task<LegacyMigrationResult> MigrateIfNeededAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Represents legacy migration result and keeps its related state and behavior together.
+/// </summary>

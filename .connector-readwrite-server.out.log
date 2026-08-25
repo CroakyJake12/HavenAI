@@ -1,0 +1,117 @@
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:7152
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://127.0.0.1:7152/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'HTTP: GET /health'
+info: Microsoft.AspNetCore.Http.Result.OkObjectResult[1]
+      Setting HTTP status code 200.
+info: Microsoft.AspNetCore.Http.Result.OkObjectResult[3]
+      Writing value of type '<>f__AnonymousType3`7' as Json.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'HTTP: GET /health'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://127.0.0.1:7152/health - 200 - application/json;+charset=utf-8 195.2884ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://127.0.0.1:7152/health - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://127.0.0.1:7152/health - 401 - application/json;+charset=utf-8 1.4895ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 98
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_preflight" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 158.9009ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 235.2150ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 207
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_write_file" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 13.5482ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 14.2546ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 167
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_read_file" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 1.2164ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 1.7112ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 145
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+fail: ModelContextProtocol.Server.McpServer[1433779783]
+      "haven_read_file" threw an unhandled exception.
+      System.Collections.Generic.KeyNotFoundException: Workspace 'not-configured' is not configured for the Haven connector.
+         at Haven.Connector.ConnectorWorkspaceRegistry.Resolve(String key) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\ConnectorWorkspaceRegistry.cs:line 50
+         at Haven.Connector.HavenMcpTools.RunWorkspaceAsync(ConnectorWorkspaceRegistry registry, WorkspaceToolRuntime runtime, String workspace, String toolName, Dictionary`2 arguments, CancellationToken cancellationToken) in C:\Users\Jacob\OneDrive\Personal Files\Development\Haven-ChatGPT-Connector-20260825\src\Haven.Connector\HavenMcpTools.cs:line 199
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunctionDescriptor.<>c__DisplayClass41_1.<<GetReturnParameterMarshaller>b__10>d.MoveNext()
+      --- End of stack trace from previous location ---
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at Microsoft.Extensions.AI.AIFunctionFactory.ReflectionAIFunction.InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.AIFunctionMcpServerTool.InvokeAsync(RequestContext`1 request, CancellationToken cancellationToken)
+         at ModelContextProtocol.Server.McpServerImpl.<>c__DisplayClass85_1.<<BuildComposedCallToolHandler>g__InvokeOrdinaryPipelineAsync|1>d.MoveNext()
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 8.673ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 9.1248ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 162
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "haven_read_file" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 0.507ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 0.9095ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:7152/mcp - application/json 100
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler called.
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "sandbox_preflight" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (Haven.Connector 1.0.0.0) method 'tools/call' request handler completed in 136.2812ms.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'MCP Streamable HTTP | HTTP: POST /mcp/'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://127.0.0.1:7152/mcp - 200 - text/event-stream 136.7185ms

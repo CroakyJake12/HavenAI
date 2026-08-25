@@ -1,0 +1,17 @@
+﻿src/Haven.Application/Abstractions.cs:150:    Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken);
+src/Haven.Application/ModelGovernance/ModelGovernance.cs:230:        "run_command" or "run_tests" => RestrictedModelCapability.RunCommands,
+src/Haven.Application/Modes/BuiltInModeSeed.cs:39:            HavenMode.Tasks, "[\"Automations\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\"]", "",
+src/Haven.Application/Modes/BuiltInModeSeed.cs:45:            HavenMode.Tasks, "[\"Terminal\"]", "[\"run_command\",\"run_tests\"]", "[]", "[]", "",
+src/Haven.Application/Modes/BuiltInModeSeed.cs:51:            HavenMode.Tasks, "[\"Tasks\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
+src/Haven.Application/Modes/BuiltInModeSeed.cs:57:            HavenMode.Studio, "[\"Studio\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\",\"Test\"]", "",
+src/Haven.Application/Modes/BuiltInModeSeed.cs:75:            HavenMode.Tasks, "[\"Training\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
+src/Haven.Application/Modes/ModeCreationService.cs:67:            - "toolAllowlist": Array of tool names to allow (e.g., ["write_file", "run_tests"])
+src/Haven.Application/Tools/ToolAvailability.cs:148:        if (!routes.ContainsKey("run_tests")) capabilities.Remove("run-tests");
+src/Haven.Application/Tools/ToolAvailability.cs:219:                || definition.Name == "run_tests" && context.CommandPermission is PermissionMode.AutoSafe or PermissionMode.FullAccess
+src/Haven.Application/Tools/ToolAvailability.cs:224:                if (definition.Name == "run_tests") capabilities.Add("run-tests");
+src/Haven.Application/Tools/ToolAvailability.cs:239:                "run_tests" => "Tool 'run_tests' requires Auto Safe or Full Access command permission.",
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:71:        Definition("run_tests", "Detect and run this workspace's tests, or run a supplied test command.",
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:111:                        "run_tests" => await RunTestsAsync(workspaceRoot, Text(call, "command"), Integer(call, "timeout_seconds", 600), cancellationToken).ConfigureAwait(false),
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:314:    private async Task<string> RunTestsAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
+src/Haven.Application/Tools/WorkspaceToolRuntime.cs:425:        "run_tests" => "Ran tests",
+src/Haven.Infrastructure/CodeIntelligence/ProjectIntelligenceService.cs:201:    public Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken)
