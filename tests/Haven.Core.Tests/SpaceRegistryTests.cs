@@ -12,10 +12,14 @@ public sealed class SpaceRegistryTests
 
         var spaces = await registry.GetAllAsync();
 
-        Assert.Equal(3, spaces.Count);
+        Assert.Equal(4, spaces.Count);
         Assert.Contains(spaces, space => space.Id == SpaceRegistry.StudySpaceId && space.Kind == SpaceKind.Study && space.IsBuiltIn);
         Assert.Contains(spaces, space => space.Id == SpaceRegistry.ShoppingSpaceId && space.Kind == SpaceKind.Shopping && space.IsBuiltIn);
         Assert.Contains(spaces, space => space.Id == SpaceRegistry.ResearchSpaceId && space.Kind == SpaceKind.Research && space.IsBuiltIn);
+        var agent = spaces.Single(space => space.Id == SpaceRegistry.AgentSpaceId);
+        Assert.True(agent.IsBuiltIn);
+        Assert.Equal(SpaceKind.Agent, agent.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(agent.Instructions));
     }
 
     [Fact]
@@ -135,6 +139,9 @@ public sealed class SpaceRegistryTests
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => registry.DeleteAsync(SpaceRegistry.StudySpaceId));
         Assert.Contains("Built-in Spaces", error.Message);
+
+        var agentError = await Assert.ThrowsAsync<InvalidOperationException>(() => registry.DeleteAsync(SpaceRegistry.AgentSpaceId));
+        Assert.Contains("Built-in Spaces", agentError.Message);
     }
 
     private sealed class MemorySettingsStore : IVersionedSettingsStore

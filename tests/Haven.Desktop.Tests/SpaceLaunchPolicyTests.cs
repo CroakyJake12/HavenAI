@@ -39,6 +39,23 @@ public sealed class SpaceLaunchPolicyTests
     }
 
     [Fact]
+    public void Agent_spaces_route_to_tasks_mode_chat_workspaces_with_high_effort()
+    {
+        var space = Create(SpaceKind.Agent, true) with
+        {
+            ThinkingMode = SpaceThinkingMode.Fast,
+            Instructions = "Plan before acting."
+        };
+
+        var plan = SpaceLaunchPolicy.Resolve(space);
+
+        Assert.Equal(SpaceLaunchDestination.ConfiguredWorkspace, plan.Destination);
+        Assert.Equal(HavenMode.Tasks, plan.Mode);
+        Assert.Equal(EffortLevel.High, plan.EffortOverride);
+        Assert.Contains("Space instructions:\nPlan before acting.", plan.RegisteredContext, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Registered_context_preserves_space_instructions_examples_and_declared_file_permissions()
     {
         var context = SpaceLaunchPolicy.Resolve(Create(SpaceKind.Research, false)).RegisteredContext;

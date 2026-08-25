@@ -5,7 +5,8 @@ public enum SpaceKind
     General = 0,
     Study = 1,
     Shopping = 2,
-    Research = 3
+    Research = 3,
+    Agent = 4
 }
 
 public enum SpaceThinkingMode

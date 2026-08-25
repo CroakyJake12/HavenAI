@@ -12,6 +12,7 @@ public sealed class SpaceRegistry
     public static Guid StudySpaceId { get; } = Guid.Parse("b1000000-0000-0000-0000-000000000001");
     public static Guid ShoppingSpaceId { get; } = Guid.Parse("b1000000-0000-0000-0000-000000000002");
     public static Guid ResearchSpaceId { get; } = Guid.Parse("b1000000-0000-0000-0000-000000000003");
+    public static Guid AgentSpaceId { get; } = Guid.Parse("b1000000-0000-0000-0000-000000000004");
 
     public SpaceRegistry(IVersionedSettingsStore settings) : this(settings, () => DateTimeOffset.UtcNow)
     {
@@ -270,7 +271,8 @@ public sealed class SpaceRegistry
         [
             new(StudySpaceId, "Study", "Organise subjects, revision material and study workflows.", "book", SpaceKind.Study, true, false, null, "Use the Study product for subject, topic, progress and assessment work.", SpaceThinkingMode.Balanced, [], [], null, epoch, epoch),
             new(ShoppingSpaceId, "Shopping", "Compare products, research options and keep buying context together.", "cart", SpaceKind.Shopping, true, false, null, "Help compare options and preserve the user's requirements and trade-offs.", SpaceThinkingMode.Balanced, [], [], null, epoch, epoch),
-            new(ResearchSpaceId, "Research", "Collect sources, files and deeper investigation in one reusable workspace.", "search", SpaceKind.Research, true, false, null, "Separate sourced facts, inference and unresolved questions.", SpaceThinkingMode.Deep, [], [], null, epoch, epoch)
+            new(ResearchSpaceId, "Research", "Collect sources, files and deeper investigation in one reusable workspace.", "search", SpaceKind.Research, true, false, null, "Separate sourced facts, inference and unresolved questions.", SpaceThinkingMode.Deep, [], [], null, epoch, epoch),
+            new(AgentSpaceId, "Agent", "Run long-horizon agentic work that plans, executes tools, verifies results and hands off cleanly.", "agents", SpaceKind.Agent, true, false, null, "Plan before acting, then execute one step at a time. Use Tasks or Studio workspaces for file and command work. Keep the Action Graph as the audit trail of every tool action. Checkpoint state before any mutation and confirm risky or destructive changes. Prefer steering or queueing follow-up work over abandoning long runs. Finish with a handoff summary of what was done, what remains and where results live.", SpaceThinkingMode.Deep, [], [], null, epoch, epoch)
         ];
     }
 
