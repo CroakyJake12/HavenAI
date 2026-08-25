@@ -29,14 +29,18 @@ internal static class SpaceLaunchPolicy
         var destination = space.Kind == SpaceKind.Study
             ? SpaceLaunchDestination.StudyProduct
             : SpaceLaunchDestination.ConfiguredWorkspace;
-        var mode = destination == SpaceLaunchDestination.StudyProduct ? HavenMode.Study : HavenMode.Chat;
+        var mode = destination == SpaceLaunchDestination.StudyProduct
+            ? HavenMode.Study
+            : space.Kind == SpaceKind.Agent ? HavenMode.Tasks : HavenMode.Chat;
         return new SpaceLaunchPlan(
             destination,
             mode,
             space.Name,
             space.ModelName,
             space.ThinkingMode,
-            space.ThinkingMode switch
+            space.Kind == SpaceKind.Agent
+                ? EffortLevel.High
+                : space.ThinkingMode switch
             {
                 SpaceThinkingMode.Fast => EffortLevel.Low,
                 SpaceThinkingMode.Balanced => EffortLevel.Medium,
