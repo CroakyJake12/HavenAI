@@ -1,4 +1,4 @@
-/*
+﻿/*
  * FILE DOCUMENTATION
  * Where: src/Haven.Infrastructure/SqliteDatabase.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
  * What: This file owns ISqliteConnectionFactory, SqliteDatabase, Migration, Migrations. Read the type and member comments below as a map of each responsibility.
@@ -901,6 +901,28 @@ internal static class Migrations
             );
             CREATE INDEX ix_task_execution_context ON task_execution_state(context_id,updated_at DESC);
             CREATE INDEX ix_task_execution_resumable ON task_execution_state(state,updated_at DESC);
+        """),
+        new(25, """
+            CREATE TABLE agent_checkpoints(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NULL,
+                container_id TEXT NULL,
+                workspace_root TEXT NOT NULL,
+                label TEXT NOT NULL,
+                mode INTEGER NOT NULL,
+                start_sequence INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_agent_checkpoints_root ON agent_checkpoints(workspace_root,created_at DESC);
+            CREATE INDEX ix_agent_checkpoints_conversation ON agent_checkpoints(conversation_id,created_at DESC);
+            ALTER TABLE workspace_versions ADD COLUMN haven_sequence INTEGER NULL;
+            UPDATE workspace_versions SET haven_sequence = rowid WHERE haven_sequence IS NULL;
+            CREATE TRIGGER trg_workspace_versions_sequence
+            AFTER INSERT ON workspace_versions
+            BEGIN
+                UPDATE workspace_versions SET haven_sequence = rowid WHERE rowid = NEW.rowid AND haven_sequence IS NULL;
+            END;
+            CREATE INDEX ix_workspace_versions_sequence ON workspace_versions(workspace_root,haven_sequence);
         """)
     ];
 }

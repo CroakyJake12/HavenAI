@@ -1,4 +1,4 @@
-/*
+﻿/*
  * FILE DOCUMENTATION
  * Where: src/Haven.Infrastructure/ServiceCollectionExtensions.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
  * What: This file owns ServiceCollectionExtensions. Read the type and member comments below as a map of each responsibility.
@@ -196,6 +196,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelPermissionStore, VersionedModelPermissionStore>();
         services.AddSingleton<ModelPersonalityService>();
         services.AddSingleton<ModelPermissionEvaluator>();
+        services.AddSingleton<IDefaultProviderStore, VersionedDefaultProviderStore>();
+        services.AddSingleton<CheckpointService>();
+        services.AddSingleton<ICheckpointRepository, SqliteCheckpointRepository>();
+        services.AddSingleton<ICheckpointRestorer, WorkspaceCheckpointRestorer>();
+        services.AddSingleton<IProjectInstructionSource, ProjectInstructionFileSource>();
         services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
         services.AddSingleton<ImagineGenerationCommand>();
         services.AddSingleton<RemediationCoordinator>();

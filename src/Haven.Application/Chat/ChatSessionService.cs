@@ -1,4 +1,4 @@
-/*
+﻿/*
  * FILE DOCUMENTATION
  * Where: src/Haven.Application/ChatSessionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
  * What: This file owns ChatSessionService, ChatStreamEvent, ChatStreamEventKind. Read the type and member comments below as a map of each responsibility.
@@ -33,7 +33,10 @@ public sealed class ChatSessionService(
     AutonomousRecoveryService? recovery = null,
     RemediationCoordinator? remediations = null,
     ModelPersonalityService? personalities = null,
-    ModelPermissionEvaluator? modelPermissions = null)
+    ModelPermissionEvaluator? modelPermissions = null,
+    IDefaultProviderStore? defaultProviders = null,
+    CheckpointService? checkpoints = null,
+    IProjectInstructionSource? projectInstructionFiles = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -280,6 +283,33 @@ public sealed class ChatSessionService(
             personalityDirective = ModelPersonalityPrompt.Describe(effectivePersonality);
         }
 
+        string? providerDefaultsDirective = null;
+        if (defaultProviders is not null)
+        {
+            var assignments = await defaultProviders.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            providerDefaultsDirective = DefaultProviderDirectives.Describe(assignments);
+        }
+
+        // Project agent-instruction files are discovered by the runtime â€” never left to model memory.
+        string? discoveredAgentInstructions = null;
+        if (projectInstructionFiles is not null && !string.IsNullOrWhiteSpace(workspaceRoot))
+        {
+            discoveredAgentInstructions = await ProjectAgentInstructions.LoadAsync(
+                projectInstructionFiles, workspaceRoot, null, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(discoveredAgentInstructions))
+            {
+                var instructionsActionId = Guid.NewGuid();
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, instructionsActionId, promptActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.InstructionsLoaded, ExecutionActionStatus.Completed,
+                    "Project agent instructions loaded", null,
+                    "Discovered agent.md/AGENTS.md rules are applied as execution constraints.", "agent-instructions",
+                    DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+            }
+        }
+        var effectiveProjectInstructions = string.Join("\n\n",
+            new[] { projectInstructions, discoveredAgentInstructions }.Where(item => !string.IsNullOrWhiteSpace(item)));
+
         using var computerPassCandidate = computerTools.CreatePass();
         var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
                 availableCapabilities ?? capabilities,
@@ -370,7 +400,8 @@ public sealed class ChatSessionService(
         var system = BuildSystemPrompt(
             conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
-            projectContext, projectInstructions, registeredContext, computerPass is not null, personalityDirective);
+            projectContext, effectiveProjectInstructions, registeredContext, computerPass is not null, personalityDirective,
+            providerDefaultsDirective);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
         var toolActivities = new List<ToolActivity>();
@@ -403,7 +434,15 @@ public sealed class ChatSessionService(
                 if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
                     return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
                 if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+                {
+                    // A checkpoint is recorded before the first applicable mutation of this execution.
+                    if (checkpoints is not null &&
+                        ModelToolPermissionMap.Map(call.Name) == RestrictedModelCapability.EditFiles)
+                        await checkpoints.EnsureBeforeMutationAsync(
+                            execution.OperationId, conversation.Id, conversation.ContainerId,
+                            workspaceRoot, checkpoints.Mode, cancellationToken).ConfigureAwait(false);
                     return await workspaceTools.ExecuteAsync(workspaceRoot, call, token, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                }
                 return new WorkspaceToolResult(
                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
                     "Tool error: registered runtime is unavailable.");
@@ -953,7 +992,7 @@ public sealed class ChatSessionService(
                 .Replace('\n', ' ')
                 .Trim();
             return "Running command: " +
-                (value.Length <= 180 ? value : value[..180] + "…");
+                (value.Length <= 180 ? value : value[..180] + "â€¦");
         }
 
         return "Started " + call.Name.Replace('_', ' ') + ".";
@@ -1034,13 +1073,13 @@ public sealed class ChatSessionService(
     /// </summary>
     private static string CompletedActionMessage(OllamaToolCall call) => call.Name switch
     {
-        "computer_launch_app" => $"Done — opened {ArgumentText(call, "name", "the application")}.",
-        "computer_focus_window" => $"Done — focused {ArgumentText(call, "title", "the requested window")}.",
-        "computer_close_window" => $"Done — requested that {ArgumentText(call, "title", "the requested window")} close.",
-        "computer_invoke" or "computer_click" => "Done — used the requested desktop control.",
-        "computer_type" => "Done — typed into the requested window.",
-        "computer_press" => $"Done — pressed {ArgumentText(call, "keys", "the requested keys")}.",
-        _ => "Done — the requested tool action completed."
+        "computer_launch_app" => $"Done â€” opened {ArgumentText(call, "name", "the application")}.",
+        "computer_focus_window" => $"Done â€” focused {ArgumentText(call, "title", "the requested window")}.",
+        "computer_close_window" => $"Done â€” requested that {ArgumentText(call, "title", "the requested window")} close.",
+        "computer_invoke" or "computer_click" => "Done â€” used the requested desktop control.",
+        "computer_type" => "Done â€” typed into the requested window.",
+        "computer_press" => $"Done â€” pressed {ArgumentText(call, "keys", "the requested keys")}.",
+        _ => "Done â€” the requested tool action completed."
     };
 
     /// <summary>
