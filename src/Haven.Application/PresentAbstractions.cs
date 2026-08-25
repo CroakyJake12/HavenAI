@@ -8,7 +8,8 @@ public sealed record PresentDocumentSummary(
     DateTimeOffset UpdatedAt,
     int Version,
     int SlideCount,
-    bool RecoveredFromBackup);
+    bool RecoveredFromBackup,
+    bool Pinned = false);
 
 public sealed record PresentSaveResult(
     Guid DocumentId,

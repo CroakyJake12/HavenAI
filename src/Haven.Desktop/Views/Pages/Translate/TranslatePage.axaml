@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.Pages.Translate.TranslatePage">
   <Grid RowDefinitions="Auto,*" Margin="30,24,30,28">
@@ -16,7 +16,7 @@
           <TextBlock Text="From" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
           <ComboBox x:Name="SourceLanguage" MinWidth="190" SelectionChanged="OnPreferenceChanged"/>
         </StackPanel>
-        <Button Grid.Column="1" x:Name="SwapButton" Content="⇄" Width="42" Height="36" Margin="0,24,0,0" Click="OnSwapClick" ToolTip.Tip="Swap languages and text"/>
+        <Button Grid.Column="1" x:Name="SwapButton" Content="â‡„" Width="42" Height="36" Margin="0,24,0,0" Click="OnSwapClick" ToolTip.Tip="Swap languages and text"/>
         <StackPanel Grid.Column="2" Spacing="5">
           <TextBlock Text="To" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
           <ComboBox x:Name="TargetLanguage" MinWidth="190" SelectionChanged="OnPreferenceChanged"/>
@@ -34,7 +34,7 @@
               <TextBlock Text="Source" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
               <TextBlock Grid.Column="1" x:Name="DetectedLanguageText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="12"/>
             </Grid>
-            <TextBox Grid.Row="1" x:Name="SourceText" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter or paste text to translate…" MinHeight="300" VerticalContentAlignment="Top"/>
+            <TextBox Grid.Row="1" x:Name="SourceText" AcceptsReturn="True" TextWrapping="Wrap" Watermark="Enter or paste text to translateâ€¦" MinHeight="300" VerticalContentAlignment="Top"/>
           </Grid>
         </Border>
 
@@ -47,7 +47,7 @@
               </StackPanel>
               <Button Grid.Column="1" Content="Copy" Click="OnCopyClick"/>
             </Grid>
-            <TextBox Grid.Row="1" x:Name="OutputText" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" PlaceholderText="Your translation will appear here." MinHeight="300" VerticalContentAlignment="Top"/>
+            <TextBox Grid.Row="1" x:Name="OutputText" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Watermark="Your translation will appear here." MinHeight="300" VerticalContentAlignment="Top"/>
           </Grid>
         </Border>
       </Grid>
@@ -60,7 +60,7 @@
           </StackPanel>
           <StackPanel Grid.Column="1" Spacing="5">
             <TextBlock Text="Context or terminology" Foreground="{DynamicResource HavenMutedBrush}"/>
-            <TextBox x:Name="ContextText" PlaceholderText="Optional: audience, domain, preferred terminology…" TextChanged="OnContextChanged"/>
+            <TextBox x:Name="ContextText" Watermark="Optional: audience, domain, preferred terminologyâ€¦" TextChanged="OnContextChanged"/>
           </StackPanel>
         </Grid>
       </Expander>

@@ -14,6 +14,7 @@ internal sealed partial class PresentSlideCanvas : HavenElement, IHavenDrawComma
     private HashSet<Guid> _selectedIds = [];
     private Guid? _dragElementId;
     private VectorHandleHit? _dragVectorHandle;
+    private Guid? _vectorPointEditingElementId;
     private HavenPoint _pointerStart;
     private HavenPoint _pointerCurrent;
 
@@ -29,7 +30,24 @@ internal sealed partial class PresentSlideCanvas : HavenElement, IHavenDrawComma
 
     public void SetSlide(PresentDocument document, PresentSlide slide, IEnumerable<Guid> selectedIds)
     {
-        _document = document ?? throw new ArgumentNullException(nameof(document)); _slide = slide ?? throw new ArgumentNullException(nameof(slide)); _selectedIds = selectedIds?.ToHashSet() ?? []; _dragElementId = null; _dragVectorHandle = null; _pointerStart = _pointerCurrent = default; Accessibility.Description = $"Slide {slide.Order + 1}. {slide.Elements.Count} editable objects."; Invalidate();
+        _document = document ?? throw new ArgumentNullException(nameof(document)); _slide = slide ?? throw new ArgumentNullException(nameof(slide)); _selectedIds = selectedIds?.ToHashSet() ?? []; _vectorPointEditingElementId = _vectorPointEditingElementId is { } editingId && _selectedIds.Contains(editingId) && slide.Elements.Any(element => element.Id == editingId && !element.Locked && element.VectorShape is not null) ? editingId : null; _dragElementId = null; _dragVectorHandle = null; _pointerStart = _pointerCurrent = default; Accessibility.Description = $"Slide {slide.Order + 1}. {slide.Elements.Count} editable objects."; Invalidate();
+    }
+
+    internal Guid? VectorPointEditingElementId => _vectorPointEditingElementId;
+
+    internal void SetVectorPointEditing(Guid? elementId)
+    {
+        if (elementId is { } id
+            && (_slide is null
+                || !_selectedIds.Contains(id)
+                || _slide.Elements.All(element => element.Id != id || element.Locked || element.VectorShape is null)))
+            elementId = null;
+        if (_vectorPointEditingElementId == elementId) return;
+        _vectorPointEditingElementId = elementId;
+        _dragVectorHandle = null;
+        _activeTransformHandle = PresentTransformHandle.None;
+        _marqueeSelecting = false;
+        Invalidate();
     }
 
     public bool PointerPressed(HavenPointerInput input)
@@ -173,7 +191,8 @@ internal sealed partial class PresentSlideCanvas : HavenElement, IHavenDrawComma
             case PresentElementKind.Shape when element.VectorShape is { } vector:
                 var renderedVector = BuildPreviewVector(element, vector);
                 DrawVectorShape(context, renderedVector, rect, opacity * element.Opacity);
-                if (_selectedIds.Count == 1 && _selectedIds.Contains(element.Id))
+                if (_vectorPointEditingElementId == element.Id
+                    || (_vectorPointEditingElementId is null && _selectedIds.Count == 1 && _selectedIds.Contains(element.Id)))
                     DrawVectorHandles(context, renderedVector, rect, opacity);
                 break;
             case PresentElementKind.Shape:
@@ -262,7 +281,8 @@ internal sealed partial class PresentSlideCanvas : HavenElement, IHavenDrawComma
     private VectorHandleHit? HitVectorHandle(HavenPoint local)
     {
         if (_slide is null || _selectedIds.Count != 1) return null;
-        var element = _slide.Elements.FirstOrDefault(value => _selectedIds.Contains(value.Id) && !value.Locked && value.VectorShape is not null);
+        var element = _slide.Elements.FirstOrDefault(value => _selectedIds.Contains(value.Id) && !value.Locked && value.VectorShape is not null
+            && (_vectorPointEditingElementId is null || value.Id == _vectorPointEditingElementId));
         if (element?.VectorShape is not { } shape) return null;
         var rect = ElementRect(element, SlideRectLocal(), false);
         var point = InverseRotatePoint(local, rect, element.RotationDegrees);

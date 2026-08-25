@@ -146,6 +146,12 @@ public sealed class BuiltInModeSeed
             "mesh", "Mesh", "Connect trusted devices and run multi-device Work Mode teams", "plugin",
             HavenMode.Tasks, "[\"Mesh\",\"Work Mode\"]", "[]", "[]", "[]", "Use Haven Mesh to manage trusted devices, remote models and agents, and coordinated Work Mode teams. Never treat discovery as trust or claim a remote action ran without a confirmed receipt.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"devices\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000022"),
+            "spaces", "Spaces", "Organise chats, files and layouts into named Spaces", "folder",
+            HavenMode.Chat, "[\"Spaces\"]", "[]", "[]", "[]", "Act as Haven Spaces. Help the user organise conversations, files and layouts into named Spaces. Opening a Space exposes its conversations; New Chat while scoped to a Space creates a Space-associated conversation. Never claim a conversation joined a Space without a confirmed membership change.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"productivity\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

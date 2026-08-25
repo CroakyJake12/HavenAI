@@ -148,6 +148,64 @@ public sealed partial class PresentEditor
         return true;
     }
 
+    public bool SetSelectedVectorFill(string? color)
+    {
+        var selected = EditableSelection().Where(element => element.Kind == PresentElementKind.Shape && element.VectorShape is not null).ToArray();
+        if (selected.Length == 0) return false;
+        var hasFill = !string.IsNullOrWhiteSpace(color);
+        var normalized = hasFill ? color!.Trim() : string.Empty;
+        Mutate(() =>
+        {
+            foreach (var element in selected)
+            foreach (var path in element.VectorShape!.Paths)
+            {
+                path.Fill.Kind = hasFill ? DocumentVectorFillKind.Solid : DocumentVectorFillKind.None;
+                if (hasFill) path.Fill.Color = normalized;
+            }
+        });
+        return true;
+    }
+
+    public bool SetSelectedVectorStroke(string? color)
+    {
+        var selected = EditableSelection().Where(element => element.Kind == PresentElementKind.Shape && element.VectorShape is not null).ToArray();
+        if (selected.Length == 0) return false;
+        var enabled = !string.IsNullOrWhiteSpace(color);
+        var normalized = enabled ? color!.Trim() : string.Empty;
+        Mutate(() =>
+        {
+            foreach (var element in selected)
+            foreach (var path in element.VectorShape!.Paths)
+            {
+                path.Stroke.Enabled = enabled;
+                if (enabled)
+                {
+                    path.Stroke.Color = normalized;
+                    if (path.Stroke.Width <= 0) path.Stroke.Width = 1;
+                }
+            }
+        });
+        return true;
+    }
+
+    public bool SetSelectedVectorStrokeWidth(double width)
+    {
+        if (!double.IsFinite(width)) return false;
+        var selected = EditableSelection().Where(element => element.Kind == PresentElementKind.Shape && element.VectorShape is not null).ToArray();
+        if (selected.Length == 0) return false;
+        var normalized = Math.Clamp(width, 0, 10000);
+        Mutate(() =>
+        {
+            foreach (var element in selected)
+            foreach (var path in element.VectorShape!.Paths)
+            {
+                path.Stroke.Width = normalized;
+                path.Stroke.Enabled = normalized > 0;
+            }
+        });
+        return true;
+    }
+
     public bool SetSelectedElementStyle(PresentElementStyle style)
     {
         ArgumentNullException.ThrowIfNull(style);

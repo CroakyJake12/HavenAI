@@ -7,7 +7,10 @@ public enum PresentElementKind
     Shape = 2,
     GenUi = 3,
     Media = 4,
-    Group = 5,`r`n    Table = 6,`r`n    Chart = 7`r`n}
+    Group = 5,
+    Table = 6,
+    Chart = 7
+}
 
 public sealed class PresentDocument
 {

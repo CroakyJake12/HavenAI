@@ -1640,6 +1640,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (openInNewTab) AddNewTab();
             OpenMeshDashboard();
         }
+        else if (route.Kind == HavenAppRouteKind.Spaces)
+        {
+            if (openInNewTab) AddNewTab();
+            await OpenSpacesAsync();
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);

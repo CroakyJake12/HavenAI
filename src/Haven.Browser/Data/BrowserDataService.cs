@@ -189,7 +189,6 @@ public sealed class BrowserDataService : IDisposable
             .GroupBy(item => item.Id)
             .Select(group => group.OrderByDescending(item => item.UpdatedAt).First())
             .OrderByDescending(item => item.UpdatedAt)
-            .Take(60)
             .ToArray();
         return MutateAndSaveAsync(data => data with { Tabs = safeTabs }, cancellationToken);
     }
@@ -372,7 +371,7 @@ public sealed class BrowserDataService : IDisposable
             SchemaVersion = CurrentSchemaVersion,
             Bookmarks = data.Bookmarks ?? [],
             History = (data.History ?? []).Take(2000).ToArray(),
-            Tabs = (data.Tabs ?? []).Where(item => item.Privacy != BrowserTabPrivacy.Private).Take(60).ToArray(),
+            Tabs = (data.Tabs ?? []).Where(item => item.Privacy != BrowserTabPrivacy.Private).ToArray(),
             Logins = data.Logins ?? [],
             Extensions = data.Extensions ?? [],
             Settings = data.Settings ?? BrowserSettings.Default
