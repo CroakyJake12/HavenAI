@@ -19,7 +19,7 @@ internal sealed record AutomationsRunCard(
 /// <summary>All visible Automations UI. Avalonia only hosts this scene through one HavenSceneControl.</summary>
 internal sealed partial class AutomationsHavenScene : IDisposable
 {
-    private enum DashboardSection { Running, History, Workflows }
+    private enum DashboardSection { Running, Scheduled, Library, History }
 
     private readonly List<AutomationsWorkflowCard> _workflows = [];
     private readonly List<AutomationsScheduledCard> _scheduled = [];
@@ -58,7 +58,9 @@ internal sealed partial class AutomationsHavenScene : IDisposable
     public Container DashboardContent { get; private set; } = null!;
     public HavenButton RunningTab { get; private set; } = null!;
     public HavenButton HistoryTab { get; private set; } = null!;
-    public HavenButton WorkflowsTab { get; private set; } = null!;
+    public HavenButton ScheduledTab { get; private set; } = null!;
+    public HavenButton LibraryTab { get; private set; } = null!;
+    public HavenButton WorkflowsTab => LibraryTab;
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? OpenTasksRequested;
@@ -135,11 +137,12 @@ internal sealed partial class AutomationsHavenScene : IDisposable
         tabs.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
         RunningTab = ActionButton("Automations.Tab.Running", "Running", ButtonVariant.Primary, (_, _) => SelectSection(DashboardSection.Running));
         HistoryTab = ActionButton("Automations.Tab.History", "History", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.History));
-        WorkflowsTab = ActionButton("Automations.Tab.Workflows", "Reusable workflows", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Workflows));
-        tabs.Add(RunningTab); tabs.Add(HistoryTab); tabs.Add(WorkflowsTab);
+        ScheduledTab = ActionButton("Automations.Tab.Scheduled", "Scheduled", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Scheduled));
+        LibraryTab = ActionButton("Automations.Tab.Library", "Library", ButtonVariant.Tertiary, (_, _) => SelectSection(DashboardSection.Library));
+        tabs.Add(RunningTab); tabs.Add(ScheduledTab); tabs.Add(LibraryTab); tabs.Add(HistoryTab);
         layer.Add(tabs);
 
-        SearchInput = new Input { Name = "Automations.Search", Placeholder = "Search workflows and runs" };
+        SearchInput = new Input { Name = "Automations.Search", Placeholder = "Search workflows, schedules and runs" };
         SearchInput.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         SearchInput.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
         SearchInput.Invalidated += OnSearchInvalidated;
@@ -167,7 +170,8 @@ internal sealed partial class AutomationsHavenScene : IDisposable
         if (DashboardContent is null) return;
         RunningTab.Variant = _section == DashboardSection.Running ? ButtonVariant.Primary : ButtonVariant.Tertiary;
         HistoryTab.Variant = _section == DashboardSection.History ? ButtonVariant.Primary : ButtonVariant.Tertiary;
-        WorkflowsTab.Variant = _section == DashboardSection.Workflows ? ButtonVariant.Primary : ButtonVariant.Tertiary;
+        ScheduledTab.Variant = _section == DashboardSection.Scheduled ? ButtonVariant.Primary : ButtonVariant.Tertiary;
+        LibraryTab.Variant = _section == DashboardSection.Library ? ButtonVariant.Primary : ButtonVariant.Tertiary;
         Clear(DashboardContent);
 
         switch (_section)
@@ -175,11 +179,14 @@ internal sealed partial class AutomationsHavenScene : IDisposable
             case DashboardSection.Running:
                 RenderRunning();
                 break;
-            case DashboardSection.History:
-                RenderHistory();
+            case DashboardSection.Scheduled:
+                RenderScheduled();
+                break;
+            case DashboardSection.Library:
+                RenderLibrary();
                 break;
             default:
-                RenderWorkflows();
+                RenderHistory();
                 break;
         }
     }
@@ -207,19 +214,30 @@ internal sealed partial class AutomationsHavenScene : IDisposable
             DashboardContent.Add(EmptyCard("Automations.History.Empty", "No run history yet", "Test or run a graph and its real result will appear here."));
     }
 
-    private void RenderWorkflows()
+    private void RenderScheduled()
     {
-        DashboardContent.Add(Heading("Automations.Workflows.Title", "Reusable workflows", TextLevel.H2));
-        var manual = _workflows.Where(item => !item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
-        var automatic = _workflows.Where(item => item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
-        var scheduledOnly = _scheduled.Where(item => !_workflows.Any(workflow => workflow.Id == item.Id) && Matches(item.Name, item.Detail)).ToArray();
+        DashboardContent.Add(Heading("Automations.Scheduled.Title", "Scheduled automations", TextLevel.H2));
+        var scheduledWorkflows = _workflows.Where(item => item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
+        var scheduledOnly = _scheduled.Where(item => !_workflows.Any(workflow => workflow.Id == item.Id) && Matches(item.Name, item.Detail)).OrderBy(item => item.Name).ToArray();
 
-        RenderWorkflowGroup("Manual workflows", manual);
-        RenderWorkflowGroup("Scheduled automations", automatic);
+        foreach (var item in scheduledWorkflows) DashboardContent.Add(BuildWorkflowCard(item));
         foreach (var item in scheduledOnly) DashboardContent.Add(BuildScheduledCard(item));
 
-        if (manual.Length == 0 && automatic.Length == 0 && scheduledOnly.Length == 0)
-            DashboardContent.Add(EmptyCard("Automations.Workflows.Empty", "No workflows found", "Create a workflow, add nodes, connect them, then test and save it."));
+        if (scheduledWorkflows.Length == 0 && scheduledOnly.Length == 0)
+            DashboardContent.Add(EmptyCard("Automations.Scheduled.Empty", "Nothing is scheduled", "Workflows with real schedules or triggers will appear here."));
+    }
+
+    private void RenderLibrary()
+    {
+        DashboardContent.Add(Heading("Automations.Library.Title", "Workflow library", TextLevel.H2));
+        var manual = _workflows.Where(item => !item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
+        var automatic = _workflows.Where(item => item.HasSchedule && Matches(item.Name, item.Description, item.ScheduleDetail)).OrderBy(item => item.Name).ToArray();
+
+        RenderWorkflowGroup("Manual workflows", manual);
+        RenderWorkflowGroup("Scheduled workflows", automatic);
+
+        if (manual.Length == 0 && automatic.Length == 0)
+            DashboardContent.Add(EmptyCard("Automations.Library.Empty", "No workflows found", "Create a workflow, add nodes, connect them, then test and save it."));
     }
 
     private void RenderWorkflowGroup(string title, IReadOnlyList<AutomationsWorkflowCard> items)
