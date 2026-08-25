@@ -23,6 +23,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
     private readonly Dictionary<Guid, CancellationTokenSource> _geometryUpdates = [];
     private bool _initialized;
     private bool _disposed;
+    private long _hotkeyInvocationVersion;
 
     public OverlayWorkspaceController(
         OverlayWorkspaceRegistry registry,
@@ -69,10 +70,17 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         await RefreshAllAsync(_registry.Snapshot, cancellationToken);
     }
 
-    internal async Task<OverlaySessionState> OpenNewGoAsync(
+    internal Task<OverlaySessionState> OpenNewGoAsync(
         OverlayContextEnvelope? context,
         string? sourceAssociation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        OpenNewGoAsync(context, sourceAssociation, cancellationToken, showAndActivate: true);
+
+    private async Task<OverlaySessionState> OpenNewGoAsync(
+        OverlayContextEnvelope? context,
+        string? sourceAssociation,
+        CancellationToken cancellationToken,
+        bool showAndActivate)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var page = await _go.CreateAsync(cancellationToken);
@@ -84,7 +92,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             cancellationToken);
         await _registry.UpdateGeometryAsync(
             session.Id,
-            new OverlaySurfaceGeometry(860, 600, 80, 110),
+            new OverlaySurfaceGeometry(460, 400, 80, 110),
             cancellationToken);
         session = _registry.Snapshot.Sessions.First(item => item.Id == session.Id);
 
@@ -92,7 +100,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             await _registry.SetContextAsync(session.Id, context, cancellationToken);
 
         Mount(session, page);
-        _windows[session.Id].ShowAndActivate();
+        if (showAndActivate) _windows[session.Id].ShowAndActivate();
         await RefreshAllAsync(_registry.Snapshot, cancellationToken);
         QueueGoSuggestionRefresh(session.Id, page, "The user opened the floating Haven Overlay workspace.");
         return _registry.Snapshot.Sessions.First(item => item.Id == session.Id);
@@ -288,21 +296,31 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
 
     private async Task CaptureVisualContextAsync(Guid sessionId)
     {
-        if (!_windows.ContainsKey(sessionId)) return;
+        if (!_windows.TryGetValue(sessionId, out var activeWindow)) return;
+        activeWindow.SetActionProgress("Reading the current screen");
         try
         {
             var context = await _visualCapture.CaptureAsync(CancellationToken.None);
-            if (!await _registry.SetContextAsync(sessionId, context, CancellationToken.None)) return;
+            if (!await _registry.SetContextAsync(sessionId, context, CancellationToken.None))
+            {
+                activeWindow.SetActionResult("Screen context could not be attached.", success: false);
+                return;
+            }
             if (_windows.TryGetValue(sessionId, out var window))
             {
                 window.ShowAndActivate();
+                window.SetActionResult("Screen context ready. Pick a quick action or ask Haven.");
                 if (window.GoPage is { } page)
                     QueueGoSuggestionRefresh(sessionId, page, "The user captured new visual Overlay context.");
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            activeWindow.ClearActionFeedback();
+        }
         catch (Exception exception)
         {
+            activeWindow.SetActionResult("Screen context is unavailable right now.", success: false);
             _notifications.Show("Overlay capture unavailable", exception.Message, ToastKind.Warning, TimeSpan.FromSeconds(6));
         }
     }
@@ -372,9 +390,11 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         var session = _registry.Snapshot.Sessions.FirstOrDefault(item => item.Id == sessionId);
         if (session is null || !_windows.TryGetValue(sessionId, out var window)) return;
         var context = session.Context;
+        window.SetActionProgress(action.Label);
 
         if (action.RequiresContext && context is null)
         {
+            window.SetActionResult(action.Label + " needs a selected screen item first.", success: false);
             _notifications.Show("No Overlay context", action.Label + " needs an active bounded selection first.", ToastKind.Info);
             return;
         }
@@ -384,7 +404,12 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             if (TopLevel.GetTopLevel(window)?.Clipboard is { } clipboard)
             {
                 await clipboard.SetTextAsync(context.SelectedText);
+                window.SetActionResult("Copied selected text.");
                 _notifications.Show("Copied", "The selected Overlay text was copied.", ToastKind.Success);
+            }
+            else
+            {
+                window.SetActionResult("Clipboard access is unavailable.", success: false);
             }
             return;
         }
@@ -399,6 +424,9 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             await AttachConcreteFilesAsync(window, context);
 
         window.ChatPage.SetDraft(BuildReviewDraft(action, context, capability));
+        window.SetActionResult(action.IsGenerated
+            ? "Ready in Haven with the normal capability permission flow."
+            : "Ready for review in Haven.");
         window.ShowAndActivate();
     }
 
@@ -548,22 +576,74 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         if (_disposed) return;
         RunOnUi(() => HandleHotkeyAsync(CancellationToken.None));
     }
-    private async Task HandleHotkeyAsync(CancellationToken cancellationToken)
+    internal async Task HandleHotkeyAsync(CancellationToken cancellationToken)
     {
-        OverlayContextEnvelope? context = null;
-        try { context = await _contextCapture.CaptureAsync(cancellationToken); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception exception)
+        var invocationVersion = Interlocked.Increment(ref _hotkeyInvocationVersion);
+        var visibleUnpinned = _windows
+            .Where(pair => !IsPinned(pair.Key) && pair.Value.WorkspaceVisible)
+            .Select(pair => pair.Value)
+            .ToArray();
+
+        // A second press dismisses the existing unpinned Overlay. Invalidate any capture that is still completing.
+        if (visibleUnpinned.Length > 0)
         {
-            _notifications.Show("Overlay context unavailable", exception.Message, ToastKind.Warning, TimeSpan.FromSeconds(5));
-        }
-        if (context is null)
-        {
-            await ToggleWorkspaceAsync(cancellationToken);
+            foreach (var visible in visibleUnpinned) visible.HideWorkspace();
             return;
         }
-        await OpenNewGoAsync(context,
-            context.Provenance.SourceApplication ?? context.Provenance.SourceWindow, cancellationToken);
+
+        // Start the source snapshot while the user's current app still owns foreground focus.
+        // The Overlay is then shown immediately without activation so capture can finish against that source.
+        var captureTask = _contextCapture.CaptureAsync(cancellationToken);
+        var goSession = _registry.Snapshot.Sessions
+            .Where(session => !session.IsPinned && session.AppKey.Equals("go", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(session => session.UpdatedAt)
+            .FirstOrDefault();
+
+        OverlaySessionState active;
+        if (goSession is null)
+        {
+            active = await OpenNewGoAsync(null, null, cancellationToken, showAndActivate: false);
+        }
+        else
+        {
+            await EnsureMountedAsync(goSession.Id, show: false, cancellationToken);
+            await _registry.ActivateAsync(goSession.Id, cancellationToken);
+            active = _registry.Snapshot.Sessions.First(session => session.Id == goSession.Id);
+        }
+
+        if (!_windows.TryGetValue(active.Id, out var window)) return;
+        window.ShowWithoutActivation();
+        window.SetActionProgress("Reading the current screen");
+
+        try
+        {
+            var context = await captureTask;
+            if (invocationVersion != Volatile.Read(ref _hotkeyInvocationVersion) || !window.WorkspaceVisible) return;
+
+            if (context is null)
+            {
+                window.SetActionResult("Overlay is ready. Use AI Select for a specific screen item.");
+                window.ShowAndActivate();
+                return;
+            }
+
+            await _registry.SetContextAsync(active.Id, context, cancellationToken);
+            if (invocationVersion != Volatile.Read(ref _hotkeyInvocationVersion) || !window.WorkspaceVisible) return;
+            window.SetActionResult("Screen context ready. Pick a quick action or ask Haven.");
+            window.ShowAndActivate();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            window.ClearActionFeedback();
+            throw;
+        }
+        catch (Exception exception)
+        {
+            if (invocationVersion != Volatile.Read(ref _hotkeyInvocationVersion) || !window.WorkspaceVisible) return;
+            window.SetActionResult("Overlay is ready, but screen context is unavailable.", success: false);
+            window.ShowAndActivate();
+            _notifications.Show("Overlay context unavailable", exception.Message, ToastKind.Warning, TimeSpan.FromSeconds(5));
+        }
     }
 
     private void QueueGeometryUpdate(Guid sessionId, OverlaySurfaceGeometry geometry)

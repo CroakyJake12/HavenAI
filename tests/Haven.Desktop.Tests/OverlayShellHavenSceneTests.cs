@@ -84,6 +84,22 @@ public sealed class OverlayShellHavenSceneTests
     }
 
     [Fact]
+    public void Scene_projects_contextual_home_and_action_feedback()
+    {
+        using var scene = new OverlayShellHavenScene();
+
+        Assert.Equal("Ask Haven about your Screen", scene.Heading.Content);
+        Assert.Equal("AI Select", scene.CaptureButton.Content);
+
+        scene.SetActionProgress("Copy text");
+        Assert.Contains("Action 1/1", scene.ProgressText.Content);
+        Assert.Contains("Copy text", scene.ProgressText.Content);
+
+        scene.SetActionResult("Copied selected text.");
+        Assert.Equal("Copied selected text.", scene.ResultText.Content);
+    }
+
+    [Fact]
     public void Scene_projects_collapsed_state_as_expand_action()
     {
         var now = new DateTimeOffset(2026, 8, 17, 16, 0, 0, TimeSpan.Zero);

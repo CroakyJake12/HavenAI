@@ -41,10 +41,10 @@ internal sealed class OverlayWorkspaceWindow : Window
         ShellControl = new HavenSceneControl { Root = ShellScene.Root };
 
         Title = "Haven Overlay — " + session.Title;
-        Width = Math.Clamp(session.Geometry.Width, 480, 720);
-        Height = Math.Clamp(session.Geometry.Height, 360, 560);
-        MinWidth = 480;
-        MinHeight = 360;
+        Width = Math.Clamp(session.Geometry.Width, 400, 560);
+        Height = Math.Clamp(session.Geometry.Height, 240, 480);
+        MinWidth = 400;
+        MinHeight = 240;
         CanResize = true;
         ShowInTaskbar = false;
         Topmost = true;
@@ -135,14 +135,17 @@ internal sealed class OverlayWorkspaceWindow : Window
         }
 
         CanResize = true;
-        MinWidth = 480;
-        MinHeight = 360;
-        Width = Math.Clamp(current.Geometry.Width, 480, 720);
-        Height = Math.Clamp(current.Geometry.Height, 360, 560);
+        MinWidth = 400;
+        MinHeight = 240;
+        Width = Math.Clamp(current.Geometry.Width, 400, 560);
+        Height = Math.Clamp(current.Geometry.Height, 240, 480);
         Position = new PixelPoint((int)Math.Round(current.Geometry.X), (int)Math.Round(current.Geometry.Y));
         if (IsVisible) EnsureVisibleOnAvailableScreen();
     }    public void SetActions(IReadOnlyList<OverlayContextActionDescriptor> actions) => ShellScene.SetActions(actions);
     public void SetSuggestions(IReadOnlyList<string> labels) => ShellScene.SetSuggestions(labels);
+    public void SetActionProgress(string label, int current = 1, int total = 1) => ShellScene.SetActionProgress(label, current, total);
+    public void SetActionResult(string message, bool success = true) => ShellScene.SetActionResult(message, success);
+    public void ClearActionFeedback() => ShellScene.ClearActionFeedback();
 
     public OverlaySurfaceGeometry CaptureGeometry() => new(
         Math.Max(MinWidth, Width),
@@ -150,9 +153,20 @@ internal sealed class OverlayWorkspaceWindow : Window
         Position.X,
         Position.Y);
 
+    public void ShowWithoutActivation()
+    {
+        if (!IsVisible)
+        {
+            ShowActivated = false;
+            Show();
+        }
+        EnsureVisibleOnAvailableScreen();
+    }
+
     public void ShowAndActivate()
     {
         if (!IsVisible) Show();
+        ShowActivated = true;
         EnsureVisibleOnAvailableScreen();
         Activate();
         if (_chatPage is not null) _chatPage.FocusComposer();

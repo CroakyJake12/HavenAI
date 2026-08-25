@@ -14,13 +14,29 @@ internal sealed class OverlayGlobalHotkey : IAsyncDisposable
     private const uint ModNoRepeat = 0x4000;
     private const uint VirtualKeyH = 0x48;
     private const uint WmHotkey = 0x0312;
+    private const uint WmUser = 0x0400;
     private const uint WmQuit = 0x0012;
+    private const uint PmNoRemove = 0x0000;
 
     private readonly ManualResetEventSlim _ready = new(false);
+    private readonly int _hotkeyId;
+    private readonly uint _modifiers;
+    private readonly uint _virtualKey;
     private Thread? _thread;
     private uint _threadId;
     private bool _started;
     private int _disposed;
+
+    public OverlayGlobalHotkey() : this(HotkeyId, ModControl | ModShift | ModNoRepeat, VirtualKeyH)
+    {
+    }
+
+    internal OverlayGlobalHotkey(int hotkeyId, uint modifiers, uint virtualKey)
+    {
+        _hotkeyId = hotkeyId;
+        _modifiers = modifiers;
+        _virtualKey = virtualKey;
+    }
 
     public event EventHandler? Pressed;
     public bool IsRegistered { get; private set; }
@@ -58,7 +74,12 @@ internal sealed class OverlayGlobalHotkey : IAsyncDisposable
     private void MessageLoop()
     {
         _threadId = Native.GetCurrentThreadId();
-        if (!Native.RegisterHotKey(IntPtr.Zero, HotkeyId, ModControl | ModShift | ModNoRepeat, VirtualKeyH))
+
+        // PostThreadMessage and thread-scoped WM_HOTKEY delivery require this thread to own
+        // a Win32 message queue before callers are told the listener is ready.
+        _ = Native.PeekMessage(out _, IntPtr.Zero, WmUser, WmUser, PmNoRemove);
+
+        if (!Native.RegisterHotKey(IntPtr.Zero, _hotkeyId, _modifiers, _virtualKey))
         {
             UnavailableReason = new Win32Exception(Marshal.GetLastWin32Error()).Message;
             _ready.Set();
@@ -79,13 +100,13 @@ internal sealed class OverlayGlobalHotkey : IAsyncDisposable
                     break;
                 }
 
-                if (message.Message == WmHotkey && message.WParam == (nint)HotkeyId)
+                if (message.Message == WmHotkey && message.WParam == (nint)_hotkeyId)
                     Pressed?.Invoke(this, EventArgs.Empty);
             }
         }
         finally
         {
-            Native.UnregisterHotKey(IntPtr.Zero, HotkeyId);
+            Native.UnregisterHotKey(IntPtr.Zero, _hotkeyId);
             IsRegistered = false;
         }
     }
@@ -127,6 +148,10 @@ internal sealed class OverlayGlobalHotkey : IAsyncDisposable
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool PeekMessage(out NativeMessage lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern int GetMessage(out NativeMessage lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);

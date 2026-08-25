@@ -65,7 +65,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
         identity.Add(SourceText);
         header.Add(identity);
 
-        CaptureButton = Action("Overlay.Capture", "Capture", ButtonVariant.Ghost);
+        CaptureButton = Action("Overlay.Capture", "AI Select", ButtonVariant.Secondary);
         NewChatButton = Action("Overlay.NewChat", "New chat", ButtonVariant.Ghost);
         PinButton = Action("Overlay.Pin", "Pin", ButtonVariant.Ghost);
         CollapseButton = Action("Overlay.Collapse", "Collapse", ButtonVariant.Ghost);
@@ -82,7 +82,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
         header.Add(NewChatButton);
         ExpandedPanel.Add(header);
 
-        Heading = new HavenText("How can I help?") { Name = "Overlay.Heading", Level = TextLevel.H1 };
+        Heading = new HavenText("Ask Haven about your Screen") { Name = "Overlay.Heading", Level = TextLevel.H2 };
         ExpandedPanel.Add(Heading);
 
         SuggestionsPanel = new Container
@@ -133,6 +133,28 @@ internal sealed class OverlayShellHavenScene : IDisposable
         Set(Actions, HavenProperties.Gap, HavenLength.Px(6));
         Set(Actions, HavenProperties.Overflow, HavenOverflow.Scroll);
         ExpandedPanel.Add(Actions);
+
+        ProgressPanel = new Container { Name = "Overlay.Progress", Layout = HavenLayout.Vertical };
+        Set(ProgressPanel, HavenProperties.Width, HavenLength.Percent(100));
+        Set(ProgressPanel, HavenProperties.Padding, HavenThickness.Parse("8px 10px"));
+        Set(ProgressPanel, HavenProperties.Background, "AccentSubtle");
+        Set(ProgressPanel, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(12)));
+        ProgressText = new HavenText("Action 1/1") { Name = "Overlay.Progress.Text", Level = TextLevel.Caption };
+        ProgressPanel.Add(ProgressText);
+        Set(ProgressPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        ExpandedPanel.Add(ProgressPanel);
+
+        ResultPanel = new Container { Name = "Overlay.Result", Layout = HavenLayout.Vertical };
+        Set(ResultPanel, HavenProperties.Width, HavenLength.Percent(100));
+        Set(ResultPanel, HavenProperties.Padding, HavenThickness.Parse("8px 10px"));
+        Set(ResultPanel, HavenProperties.Background, "SurfaceRaised");
+        Set(ResultPanel, HavenProperties.BorderColor, "Border");
+        Set(ResultPanel, HavenProperties.BorderWidth, HavenLength.Px(1));
+        Set(ResultPanel, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(12)));
+        ResultText = new HavenText(string.Empty) { Name = "Overlay.Result.Text", Level = TextLevel.Caption };
+        ResultPanel.Add(ResultText);
+        Set(ResultPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        ExpandedPanel.Add(ResultPanel);
 
         var composerRow = new Container
         {
@@ -205,6 +227,10 @@ internal sealed class OverlayShellHavenScene : IDisposable
     public HavenText ContextSummary { get; }
     public HavenText PermissionText { get; }
     public DynamicUIRuntime Actions { get; }
+    public Container ProgressPanel { get; }
+    public HavenText ProgressText { get; }
+    public Container ResultPanel { get; }
+    public HavenText ResultText { get; }
     public HavenButton AddButton { get; }
     public Input ComposerInput { get; }
     public HavenButton SendButton { get; }
@@ -253,6 +279,28 @@ internal sealed class OverlayShellHavenScene : IDisposable
     {
         Set(CollapsedPromptButton, HavenProperties.Visibility, collapsed ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         Set(ExpandedPanel, HavenProperties.Visibility, collapsed ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+    }
+
+    public void SetActionProgress(string label, int current = 1, int total = 1)
+    {
+        total = Math.Max(1, total);
+        current = Math.Clamp(current, 1, total);
+        ProgressText.Content = $"Action {current}/{total} · {label}";
+        Set(ResultPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        Set(ProgressPanel, HavenProperties.Visibility, HavenVisibility.Visible);
+    }
+
+    public void SetActionResult(string message, bool success = true)
+    {
+        ResultText.Content = success ? message : "Could not complete: " + message;
+        Set(ProgressPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        Set(ResultPanel, HavenProperties.Visibility, HavenVisibility.Visible);
+    }
+
+    public void ClearActionFeedback()
+    {
+        Set(ProgressPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        Set(ResultPanel, HavenProperties.Visibility, HavenVisibility.Collapsed);
     }
 
     public void SetActions(IReadOnlyList<OverlayContextActionDescriptor> actions)
