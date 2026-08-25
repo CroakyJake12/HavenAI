@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Events;
@@ -181,7 +181,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_disposed) return;
         try
         {
-            _route.SetStatus("Loading installed modelsâ€¦");
+            _route.SetStatus("Loading installed models…");
             _models = await _ollama.GetModelsAsync(_lifetime.Token);
             _route.SetModels(_models.Select(model => model.Name).ToArray(), _preferences.DefaultModel);
             _route.SetStatus(_models.Count == 0 ? "No local models are installed." : $"{_models.Count} local model{(_models.Count == 1 ? string.Empty : "s")} available.");
@@ -475,7 +475,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_extensionManager is null || Selected(_extensionSources, _route.ExtensionSourceSelect.SelectedIndex) is not { } source) return;
         try
         {
-            _route.ExtensionStatusText.Content = "Refreshing repository manifestâ€¦";
+            _route.ExtensionStatusText.Content = "Refreshing repository manifest…";
             _availableExtensions = await _extensionManager.RefreshAsync(source.Id, _lifetime.Token);
             _permissionReviewPackageId = null;
             _route.ExtensionInstallButton.Content = "Review permissions";
@@ -521,7 +521,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         }
         try
         {
-            _route.ExtensionStatusText.Content = "Installing package atomicallyâ€¦";
+            _route.ExtensionStatusText.Content = "Installing package atomically…";
             await _extensionManager.InstallAsync(package, package.Manifest.RequestedPermissions, _lifetime.Token);
             _permissionReviewPackageId = null;
             _route.ExtensionInstallButton.Content = "Review permissions";
@@ -582,7 +582,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _refreshingLearning = true;
         try
         {
-            _route.SetLearningFeedback("Loading Background Learning stateâ€¦");
+            _route.SetLearningFeedback("Loading Background Learning state…");
             await _backgroundLearning.InitializeAsync(_lifetime.Token);
             var snapshot = await _backgroundLearning.GetSnapshotAsync(_lifetime.Token);
             _learningTasks = snapshot.Tasks;
@@ -603,7 +603,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             ShowSelectedApi();
             ShowSelectedTask();
             if (errors.Count > 0)
-                _route.SetLearningFeedback($"Background Learning loaded partially â€” {string.Join(" Â· ", errors)}");
+                _route.SetLearningFeedback($"Background Learning loaded partially — {string.Join(" Â· ", errors)}");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -640,7 +640,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         if (_knowledgeMaintenance is null) return;
         try
         {
-            _route.SetLearningFeedback("Cleaning up stale, expired and superseded unpinned knowledgeâ€¦");
+            _route.SetLearningFeedback("Cleaning up stale, expired and superseded unpinned knowledge…");
             var result = await _knowledgeMaintenance.CleanupAsync(_lifetime.Token);
             await RefreshLearningAsync();
             _route.SetLearningFeedback(result.Summary);
@@ -830,11 +830,11 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
                 return;
             }
 
-            _route.SetStatus($"Installing {model}â€¦");
+            _route.SetStatus($"Installing {model}…");
             var progress = new Progress<double>(value =>
             {
                 _route.InstallProgress.Value = Math.Clamp(value, 0, 1);
-                _route.SetStatus($"Installing {model}â€¦ {Math.Round(Math.Clamp(value, 0, 1) * 100)}%");
+                _route.SetStatus($"Installing {model}… {Math.Round(Math.Clamp(value, 0, 1) * 100)}%");
             });
             await _ollama.PullModelAsync(model, progress, cancellationToken);
             _route.InstallProgress.Value = 1;

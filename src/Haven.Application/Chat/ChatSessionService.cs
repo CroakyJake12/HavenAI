@@ -1,4 +1,4 @@
-﻿/*
+/*
  * FILE DOCUMENTATION
  * Where: src/Haven.Application/ChatSessionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
  * What: This file owns ChatSessionService, ChatStreamEvent, ChatStreamEventKind. Read the type and member comments below as a map of each responsibility.
@@ -310,7 +310,7 @@ public sealed class ChatSessionService(
             providerDefaultsDirective = DefaultProviderDirectives.Describe(assignments);
         }
 
-        // Project agent-instruction files are discovered by the runtime â€” never left to model memory.
+        // Project agent-instruction files are discovered by the runtime — never left to model memory.
         string? discoveredAgentInstructions = null;
         if (projectInstructionFiles is not null && !string.IsNullOrWhiteSpace(workspaceRoot))
         {
@@ -1023,7 +1023,7 @@ public sealed class ChatSessionService(
                 .Replace('\n', ' ')
                 .Trim();
             return "Running command: " +
-                (value.Length <= 180 ? value : value[..180] + "â€¦");
+                (value.Length <= 180 ? value : value[..180] + "…");
         }
 
         return "Started " + call.Name.Replace('_', ' ') + ".";
@@ -1106,13 +1106,13 @@ public sealed class ChatSessionService(
     /// </summary>
     private static string CompletedActionMessage(OllamaToolCall call) => call.Name switch
     {
-        "computer_launch_app" => $"Done â€” opened {ArgumentText(call, "name", "the application")}.",
-        "computer_focus_window" => $"Done â€” focused {ArgumentText(call, "title", "the requested window")}.",
-        "computer_close_window" => $"Done â€” requested that {ArgumentText(call, "title", "the requested window")} close.",
-        "computer_invoke" or "computer_click" => "Done â€” used the requested desktop control.",
-        "computer_type" => "Done â€” typed into the requested window.",
-        "computer_press" => $"Done â€” pressed {ArgumentText(call, "keys", "the requested keys")}.",
-        _ => "Done â€” the requested tool action completed."
+        "computer_launch_app" => $"Done — opened {ArgumentText(call, "name", "the application")}.",
+        "computer_focus_window" => $"Done — focused {ArgumentText(call, "title", "the requested window")}.",
+        "computer_close_window" => $"Done — requested that {ArgumentText(call, "title", "the requested window")} close.",
+        "computer_invoke" or "computer_click" => "Done — used the requested desktop control.",
+        "computer_type" => "Done — typed into the requested window.",
+        "computer_press" => $"Done — pressed {ArgumentText(call, "keys", "the requested keys")}.",
+        _ => "Done — the requested tool action completed."
     };
 
     /// <summary>
