@@ -75,6 +75,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.LoadPrivacyPreferences(_privacy.Current);
         WireEvents();
         InitializeConnections();
+        InitializeGovernance();
         _ = RefreshModelsAsync();
         _ = RefreshDefaultTabsAsync();
         _ = RefreshExtensionsAsync();
