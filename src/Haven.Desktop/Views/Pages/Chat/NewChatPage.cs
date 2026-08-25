@@ -167,6 +167,20 @@ public sealed class NewChatPage : UserControl, IDisposable
     public ModelDescriptor? SelectedModel => _selectedModel;
     public Guid ConversationId => _conversation.Id;
     public Conversation CurrentConversation => _conversation;
+    public async Task AssignSpaceAsync(Guid? spaceId, CancellationToken cancellationToken = default)
+    {
+        if (_conversation.SpaceId == spaceId) return;
+
+        _conversation = _conversation with
+        {
+            SpaceId = spaceId,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        if (!_conversation.IsTemporary)
+            await _conversations.UpsertConversationAsync(_conversation, cancellationToken);
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public bool IsTemporary => _conversation.IsTemporary;
     public bool HasStarted => _messages.Count > 0;
     public string ActiveAgentName => _activeAgent?.Name ?? "No Agent (Default)";

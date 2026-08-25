@@ -534,7 +534,7 @@ internal sealed class SpacesHavenScene : IDisposable
     private static Page BuildRoot()
     {
         const string markup = """
-            <Page Name="SpacesRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto 1fr Auto" Gap="14px" Padding="22px" Background="Surface">
+            <Page Name="SpacesRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto 1fr Auto" Gap="14px" Padding="22px" Background="Transparent">
               <Container Name="Header" Row="0" Layout="Grid" Columns="1fr Auto Auto" Width="100%" Gap="8px">
                 <Container Name="HeaderTitle" Column="0" Layout="Vertical" Gap="2px">
                   <Text Content="Spaces" Level="H1" />

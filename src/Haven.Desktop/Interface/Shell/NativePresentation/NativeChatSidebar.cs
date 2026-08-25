@@ -123,15 +123,26 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         }
         if (_disposed) return;
 
-        var choices = new List<(string Label, Action Action)>
+        _scene.ShowSpacePicker(
+            _spaceRows,
+            _currentSpaceId,
+            spaceId => _ = SelectSpaceAsync(spaceId),
+            ShowCreateSpacePrompt,
+            () => ManageSpacesRequested?.Invoke(this, EventArgs.Empty));
+    }
+
+    private void ShowCreateSpacePrompt()
+    {
+        if (_spaces is null) return;
+        _scene.ShowTextPrompt("New Space", string.Empty, "Create Space", async name =>
         {
-            ("General (no Space)", () => _ = SelectSpaceAsync(null))
-        };
-        choices.AddRange(_spaceRows
-            .OrderBy(space => space.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(space => (space.Name, (Action)(() => _ = SelectSpaceAsync(space.Id)))));
-        choices.Add(("Manage Spaces…", () => ManageSpacesRequested?.Invoke(this, EventArgs.Empty)));
-        _scene.ShowChoices("Spaces", choices);
+            var created = await _spaces.CreateAsync(
+                name,
+                "Keep related chats, files and context together.",
+                _lifetime.Token);
+            _spaceRows = await _spaces.GetAllAsync(false, _lifetime.Token).ConfigureAwait(false);
+            await SelectSpaceAsync(created.Id).ConfigureAwait(false);
+        });
     }
 
     private async Task SelectSpaceAsync(Guid? spaceId)
@@ -259,7 +270,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
                 .Select(chat => ConversationEntry(chat, true)));
         }
 
-        var sourceConversationIds = _conversationRows.Select(chat => chat.Id).ToHashSet();
+        var sourceConversationIds = _conversationRows.Where(InScope).Select(chat => chat.Id).ToHashSet();
         var files = _currentMode == HavenMode.Chat
             ? _fileRows
                 .Where(file => sourceConversationIds.Contains(file.ConversationId) && Matches(file.OriginalName))

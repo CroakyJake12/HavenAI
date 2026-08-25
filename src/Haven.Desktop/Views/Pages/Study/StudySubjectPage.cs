@@ -420,7 +420,7 @@ internal sealed class StudySubjectScene : IDisposable
         Root = new HavenPage { Name = "StudySubjectRoot", Layout = HavenLayout.Grid, Rows = "Auto Auto 1fr Auto" };
         Root.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         Root.SetValue(HavenProperties.Height, HavenLength.Percent(100));
-        Root.SetValue(HavenProperties.Background, "Surface");
+        Root.SetValue(HavenProperties.Background, "Transparent");
 
         var header = new HavenContainer { Layout = HavenLayout.Grid, Columns = "Auto 1fr Auto Auto" };
         header.SetValue(HavenProperties.Row, 0);

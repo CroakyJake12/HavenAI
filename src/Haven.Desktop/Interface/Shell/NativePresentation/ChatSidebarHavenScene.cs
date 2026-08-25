@@ -1,3 +1,4 @@
+using Haven.Application;
 using Haven.Core;
 using Haven.UI;
 using Haven.UI.Components;
@@ -259,6 +260,112 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         Root.Add(overlay);
     }
 
+    public void ShowSpacePicker(
+        IReadOnlyList<SpaceDefinition> spaces,
+        Guid? selectedId,
+        Action<Guid?> selectSpace,
+        Action createSpace,
+        Action manageSpaces)
+    {
+        ArgumentNullException.ThrowIfNull(spaces);
+        ArgumentNullException.ThrowIfNull(selectSpace);
+        ArgumentNullException.ThrowIfNull(createSpace);
+        ArgumentNullException.ThrowIfNull(manageSpaces);
+
+        var overlay = CreateModal("Spaces", out var card);
+        card.SetValue(HavenProperties.Width, HavenLength.Px(340));
+        card.SetValue(HavenProperties.MaxHeight, HavenLength.Percent(82));
+        card.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+
+        var intro = new HavenText { Content = "Choose a workspace to keep its chats and context together." };
+        intro.SetValue(HavenProperties.Foreground, "TextSecondary");
+        intro.SetValue(HavenProperties.FontSize, 12d);
+        card.Add(intro);
+
+        AddSpaceChoice(card, "Chat", "General conversations outside a Space.", "chat", selectedId is null, () => selectSpace(null), overlay);
+        foreach (var space in spaces
+                     .OrderByDescending(space => space.IsBuiltIn)
+                     .ThenBy(space => space.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var id = space.Id;
+            var detail = string.IsNullOrWhiteSpace(space.Description) ? $"{space.Kind} Space" : space.Description;
+            AddSpaceChoice(
+                card,
+                space.Name,
+                detail,
+                string.IsNullOrWhiteSpace(space.IconKey) ? "sparkles" : space.IconKey,
+                selectedId == id,
+                () => selectSpace(id),
+                overlay);
+        }
+
+        var create = new HavenButton { Content = "New Space", Variant = ButtonVariant.Primary, IconKey = "plus" };
+        create.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        create.SetValue(HavenProperties.MinHeight, HavenLength.Px(40));
+        create.Accessibility.AccessibleName = "Create new Space";
+        create.Invoked += (_, _) =>
+        {
+            CloseModal(overlay);
+            createSpace();
+        };
+        card.Add(create);
+
+        var manage = new HavenButton { Content = "Manage Spaces", Variant = ButtonVariant.Secondary, IconKey = "settings" };
+        manage.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        manage.SetValue(HavenProperties.MinHeight, HavenLength.Px(40));
+        manage.Accessibility.AccessibleName = "Manage Spaces";
+        manage.Invoked += (_, _) =>
+        {
+            CloseModal(overlay);
+            manageSpaces();
+        };
+        card.Add(manage);
+        card.Add(CancelButton(overlay));
+        Root.Add(overlay);
+    }
+
+    private void AddSpaceChoice(
+        Container card,
+        string name,
+        string detail,
+        string iconKey,
+        bool selected,
+        Action select,
+        Container overlay)
+    {
+        var row = new Container { Layout = HavenLayout.Vertical, Name = "SpacePickerRow" };
+        row.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        row.SetValue(HavenProperties.Padding, HavenThickness.Parse("6px 8px"));
+        row.SetValue(HavenProperties.Gap, HavenLength.Px(2));
+        row.SetValue(HavenProperties.Background, selected ? "AccentSoft" : "Transparent");
+        row.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(12)));
+
+        var open = new HavenButton
+        {
+            Content = selected ? $"{name} · Current" : name,
+            Variant = ButtonVariant.Navigation,
+            IconKey = iconKey
+        };
+        open.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        open.SetValue(HavenProperties.MinHeight, HavenLength.Px(38));
+        open.Accessibility.AccessibleName = selected ? $"{name}, current Space" : $"Open {name}";
+        open.Invoked += (_, _) =>
+        {
+            CloseModal(overlay);
+            select();
+        };
+        row.Add(open);
+
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            var description = new HavenText { Content = detail };
+            description.SetValue(HavenProperties.Foreground, "TextSecondary");
+            description.SetValue(HavenProperties.FontSize, 11d);
+            row.Add(description);
+        }
+        card.Add(row);
+    }
+
     private void SyncRows(string location, IReadOnlyList<ChatSidebarEntry> entries)
     {
         if (!_items.TryGetValue(location, out var byId))
@@ -503,7 +610,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private static Page BuildRoot()
     {
         const string markup = """
-            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
+            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Transparent">
               <Container Name="HeaderRow" Row="0" Layout="Grid" Columns="1fr 34px" Width="100%" Gap="6px">
                 <Button Name="SpacePicker" Variant="Secondary" Content="Chat" Column="0" Height="38px" MinHeight="38px" />
                 <Button Name="SearchToggle" Variant="Icon" IconKey="search" Content="" Column="1" Width="34px" Height="34px" MinHeight="34px" />

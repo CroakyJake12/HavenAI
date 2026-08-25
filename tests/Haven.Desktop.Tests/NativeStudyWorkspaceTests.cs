@@ -23,6 +23,20 @@ public sealed class NativeStudyWorkspaceTests
     }
 
     [Fact]
+    public void Study_home_can_refresh_repeatedly_without_reparenting_subject_input()
+    {
+        using var scene = new StudyHomeScene();
+        var now = DateTimeOffset.UtcNow;
+        var lessons = new Dictionary<Guid, IReadOnlyList<Lesson>>();
+        var assignments = new Dictionary<Guid, IReadOnlyList<PlannerStudyAssignment>>();
+
+        scene.Render(now, (0, 0, 0), (0, 1, 1000), [], lessons, assignments);
+        scene.Render(now, (0, 0, 0), (0, 1, 1000), [], lessons, assignments);
+
+        Assert.Single(scene.Root.DescendantsAndSelf().OfType<Input>(), input => input.Name == "StudySubjectName");
+    }
+
+    [Fact]
     public void Subject_workspace_exposes_native_learning_tabs_and_rag_topic_action()
     {
         var now = DateTimeOffset.UtcNow;

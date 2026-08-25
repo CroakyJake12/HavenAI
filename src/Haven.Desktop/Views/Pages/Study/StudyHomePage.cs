@@ -173,7 +173,7 @@ internal sealed class StudyHomeScene : IDisposable
         Root = new HavenPage { Name = "StudyHomeRoot", Layout = HavenLayout.Grid, Rows = "Auto 1fr Auto" };
         Root.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         Root.SetValue(HavenProperties.Height, HavenLength.Percent(100));
-        Root.SetValue(HavenProperties.Background, "Surface");
+        Root.SetValue(HavenProperties.Background, "Transparent");
 
         var top = new HavenContainer { Layout = HavenLayout.Grid, Columns = "1fr Auto Auto" };
         top.SetValue(HavenProperties.Width, HavenLength.Percent(100));
@@ -292,6 +292,7 @@ internal sealed class StudyHomeScene : IDisposable
 
         var add = Card();
         add.Add(Heading("Add Subject"));
+        if (SubjectName.Parent is not null) SubjectName.Parent.Remove(SubjectName);
         add.Add(SubjectName);
         var addButton = new HavenButton { Name = "StudyAddSubject", Content = "Add Subject", Variant = ButtonVariant.Primary };
         addButton.SetValue(HavenProperties.MaxWidth, HavenLength.Px(220));

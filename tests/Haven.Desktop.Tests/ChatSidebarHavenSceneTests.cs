@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Views.Shell.NativePresentation;
@@ -179,6 +180,59 @@ public sealed class ChatSidebarHavenSceneTests
         scene.SetMode(HavenMode.Study);
         Assert.Equal("Study", scene.SpacePicker.Content);
         Assert.Equal(HavenVisibility.Collapsed, scene.FilesHeading.GetValue(HavenProperties.Visibility));
+    }
+
+    [AvaloniaFact]
+    public void Sidebar_space_picker_exposes_current_space_selection_and_manage_action()
+    {
+        using var scene = new ChatSidebarHavenScene();
+        var study = new SpaceDefinition(
+            SpaceRegistry.StudySpaceId,
+            "Study",
+            "Organise subjects and revision.",
+            "book",
+            SpaceKind.Study,
+            true,
+            false,
+            null,
+            string.Empty,
+            SpaceThinkingMode.Balanced,
+            [],
+            [],
+            null,
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch);
+        Guid? selected = null;
+        var created = false;
+        var managed = false;
+
+        scene.ShowSpacePicker([study], study.Id, id => selected = id, () => created = true, () => managed = true);
+
+        var picker = scene.Root.Children.OfType<Container>().Single(element => element.Name == "ChatSidebarModal");
+        var current = picker.DescendantsAndSelf().OfType<HavenButton>()
+            .Single(button => button.Accessibility.AccessibleName == "Study, current Space");
+        Assert.Equal("Study · Current", current.Content);
+        var create = picker.DescendantsAndSelf().OfType<HavenButton>()
+            .Single(button => button.Accessibility.AccessibleName == "Create new Space");
+        Click(scene, create);
+        Assert.True(created);
+        Assert.DoesNotContain(scene.Root.Children, element => element.Name == "ChatSidebarModal");
+
+        scene.ShowSpacePicker([study], study.Id, id => selected = id, () => created = true, () => managed = true);
+        picker = scene.Root.Children.OfType<Container>().Single(element => element.Name == "ChatSidebarModal");
+        var chat = picker.DescendantsAndSelf().OfType<HavenButton>()
+            .Single(button => button.Accessibility.AccessibleName == "Open Chat");
+        Click(scene, chat);
+        Assert.Null(selected);
+        Assert.DoesNotContain(scene.Root.Children, element => element.Name == "ChatSidebarModal");
+
+        scene.ShowSpacePicker([study], null, id => selected = id, () => created = true, () => managed = true);
+        picker = scene.Root.Children.OfType<Container>().Single(element => element.Name == "ChatSidebarModal");
+        var manage = picker.DescendantsAndSelf().OfType<HavenButton>()
+            .Single(button => button.Accessibility.AccessibleName == "Manage Spaces");
+        Click(scene, manage);
+        Assert.True(managed);
+        Assert.DoesNotContain(scene.Root.Children, element => element.Name == "ChatSidebarModal");
     }
 
     private static void Click(HavenInputRouter router, HavenElement element)
