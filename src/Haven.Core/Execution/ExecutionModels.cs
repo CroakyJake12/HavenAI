@@ -34,7 +34,15 @@ public enum ExecutionActionType
     UserActionRequired = 18,
     Warning = 19,
     Error = 20,
-    FinalResponse = 21
+    FinalResponse = 21,
+    ModelFallback = 22,
+    PermissionDenied = 23,
+    InstructionsLoaded = 24,
+    CheckpointCreated = 25,
+    CheckpointRestored = 26,
+    ContextChanged = 27,
+    JudgeEvaluated = 28,
+    UpdateStaged = 29
 }
 
 public enum ExecutionActionStatus

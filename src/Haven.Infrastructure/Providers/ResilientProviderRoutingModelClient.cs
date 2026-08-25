@@ -15,12 +15,16 @@ namespace Haven.Infrastructure;
 
 /// <summary>
 /// Represents resilient provider routing model client and keeps its related state and behavior together.
+/// Honours the user's ordered fallback preference ahead of automatic ranking and records real
+/// model switches in the Action Graph.
 /// </summary>
 public sealed class ResilientProviderRoutingModelClient(
     ProviderRoutingModelClient primary,
     IModelProviderRegistry providers,
     IProviderConfigurationStore configurations,
-    IPrivacyPreferenceStore privacy) : IProviderModelClient
+    IPrivacyPreferenceStore privacy,
+    IModelFallbackOrderStore? fallbackOrder = null,
+    IExecutionEventSink? executionEvents = null) : IProviderModelClient
 {
     /// <summary>
     /// Reports whether available async applies to the current state.
@@ -48,8 +52,9 @@ public sealed class ResilientProviderRoutingModelClient(
     {
         var emitted = false;
         Exception? firstFailure = null;
-        foreach (var model in await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false))
+        foreach (var (model, index) in (await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false)).Select((value, index) => (value, index)))
         {
+            if (index > 0) PublishFallback(request.Model, model, firstFailure);
             var routedRequest = request with { Model = model };
             var failedBeforeOutput = false;
             await using var enumerator = primary.StreamChatAsync(routedRequest, cancellationToken)
@@ -84,9 +89,11 @@ public sealed class ResilientProviderRoutingModelClient(
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         Exception? firstFailure = null;
-        foreach (var model in await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false))
+        var candidates = await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false);
+        for (var index = 0; index < candidates.Count; index++)
         {
-            try { return await primary.CompleteAsync(request with { Model = model }, cancellationToken).ConfigureAwait(false); }
+            if (index > 0) PublishFallback(request.Model, candidates[index], firstFailure);
+            try { return await primary.CompleteAsync(request with { Model = candidates[index] }, cancellationToken).ConfigureAwait(false); }
             catch (Exception ex) when (IsRecoverable(ex, cancellationToken)) { firstFailure ??= ex; }
         }
         throw new InvalidOperationException("Every compatible model failed before completing the request.", firstFailure);
@@ -101,9 +108,11 @@ public sealed class ResilientProviderRoutingModelClient(
         if (hasPriorToolState) return await primary.ChatWithToolsAsync(request, cancellationToken).ConfigureAwait(false);
 
         Exception? firstFailure = null;
-        foreach (var model in await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false))
+        var candidates = await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false);
+        for (var index = 0; index < candidates.Count; index++)
         {
-            try { return await primary.ChatWithToolsAsync(request with { Model = model }, cancellationToken).ConfigureAwait(false); }
+            if (index > 0) PublishFallback(request.Model, candidates[index], firstFailure);
+            try { return await primary.ChatWithToolsAsync(request with { Model = candidates[index] }, cancellationToken).ConfigureAwait(false); }
             catch (Exception ex) when (IsRecoverable(ex, cancellationToken)) { firstFailure ??= ex; }
         }
         throw new InvalidOperationException("Every compatible model failed before the first tool call.", firstFailure);
@@ -127,13 +136,23 @@ public sealed class ResilientProviderRoutingModelClient(
                                                             && item.Name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
         }
 
-        var firstKey = requested?.Key ?? requestedModel;
+        var firstKey = requested?.IsLocal == false ? requested.Key : requested?.Name ?? requestedModel;
         var selectedProviderId = requested?.ProviderId ?? ProviderId(requestedModel);
         var selectedConfiguration = await configurations.GetAsync(selectedProviderId, cancellationToken).ConfigureAwait(false);
         var allowCloud = !privacy.Current.LocalOnlyMode
                          && (requested?.IsLocal == false || selectedConfiguration?.AllowCloudFallback == true);
         var compatible = descriptors.Where(item => required.All(item.Supports) && (allowCloud || item.IsLocal)).ToArray();
-        var result = new List<string> { requested?.IsLocal == false ? requested.Key : requested?.Name ?? requestedModel };
+        var result = new List<string> { firstKey };
+
+        // The user's ordered fallback preference always outranks per-provider chains and automatic ranking.
+        if (fallbackOrder is not null)
+        {
+            foreach (var key in await fallbackOrder.GetOrderAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var descriptor = compatible.FirstOrDefault(item => item.Matches(key));
+                if (descriptor is not null) Add(descriptor);
+            }
+        }
 
         if (selectedConfiguration?.Metadata.TryGetValue("fallback-chain", out var chain) == true)
         {
@@ -157,6 +176,26 @@ public sealed class ResilientProviderRoutingModelClient(
             var key = descriptor.IsLocal ? descriptor.Name : descriptor.Key;
             if (!key.Equals(firstKey, StringComparison.OrdinalIgnoreCase)) result.Add(key);
         }
+    }
+
+    /// <summary>
+    /// Records a real model switch in the Action Graph without interrupting execution.
+    /// </summary>
+    private void PublishFallback(string requestedModel, string actualModel, Exception? cause)
+    {
+        if (executionEvents is null) return;
+        var requestedLabel = string.IsNullOrWhiteSpace(requestedModel) ? actualModel : requestedModel;
+        executionEvents.TryPublish(new ExecutionEvent(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, ExecutionOrigin.Haven,
+            ExecutionActionType.ModelFallback, ExecutionActionStatus.Completed,
+            $"{requestedLabel} unavailable — switched to {actualModel}.", null,
+            cause?.GetType().Name, "model-routing", DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+            SafeMetadata: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["requested"] = requestedLabel,
+                ["used"] = actualModel
+            }));
     }
 
     private async Task<IReadOnlyList<ProviderModelDescriptor>> GetEligibleModelsAsync(CancellationToken cancellationToken)
