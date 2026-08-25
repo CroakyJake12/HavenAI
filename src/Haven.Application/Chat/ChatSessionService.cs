@@ -1170,7 +1170,8 @@ public sealed class ChatSessionService(
         string? projectInstructions,
         string? registeredContext,
         bool computerUseEnabled,
-        string? personalityDirective = null)
+        string? personalityDirective = null,
+        string? providerDefaultsDirective = null)
     {
         var mode = conversation.Mode switch
         {
@@ -1215,6 +1216,8 @@ public sealed class ChatSessionService(
         {
             builder.Append("\nComputer Use is active and controls the real Windows desktop. Complete multi-step desktop requests with tools rather than treating the whole sentence as an application name. Use computer_launch_app with only the exact app name. Every mutation tool includes a post-action inspection in its result, so use that verification to choose the next step; call computer_snapshot or computer_list_windows separately only when more state is needed or a verification failed. Bind every input action to an exact visible target window and stop if verification fails.");
         }
+        if (!string.IsNullOrWhiteSpace(providerDefaultsDirective))
+            builder.Append('\n').Append(providerDefaultsDirective.Trim());
         builder.Append("\nWhen a short multiple-choice clarification is genuinely required, end with exactly one tag in this form: <haven-question>{\"question\":\"...\",\"options\":[\"First\",\"Second\"]}</haven-question>. Provide two or three mutually exclusive options and do not invent an Other option.");
         builder.Append("\nNever claim a tool or browser action happened unless a tool result confirms it.");
         return builder.ToString();
