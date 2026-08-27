@@ -30,7 +30,7 @@ public sealed class NativeStudyWorkspaceTests
         var lesson = new Lesson(Guid.NewGuid(), subject.Id, "Pure", "Algebra", "{}", 0, now, now);
         using var scene = new StudySubjectScene();
 
-        scene.Render(subject, [lesson], [], [], [], (0, 0, 0), (0, 1, 0), now, false);
+        scene.Render(subject, [lesson], [], [], [], (0, 0, 0), (0, 1, 0), now, null);
 
         var navLabels = Buttons(scene).Select(button => button.Content).ToArray();
         Assert.Contains("Dashboard", navLabels);
@@ -65,6 +65,62 @@ public sealed class NativeStudyWorkspaceTests
 
         Invoke(FindButton(scene, "Paper Builder"));
         Assert.Contains(Buttons(scene), button => button.Content == "Build Practice Paper");
+    }
+
+    [Fact]
+    public void Subject_workspace_live_lesson_controls_follow_running_and_paused_state()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, "A-Level Maths", string.Empty, now, now);
+        var lesson = new Lesson(Guid.NewGuid(), subject.Id, "Pure", "Algebra", "{}", 0, now, now);
+        using var scene = new StudySubjectScene();
+        var starts = 0;
+        var pauses = 0;
+        var resumes = 0;
+        var stops = 0;
+        scene.StartSessionRequested += (_, _) => starts++;
+        scene.PauseSessionRequested += (_, _) => pauses++;
+        scene.ResumeSessionRequested += (_, _) => resumes++;
+        scene.StopSessionRequested += (_, _) => stops++;
+
+        scene.Render(subject, [lesson], [], [], [], (0, 0, 0), (0, 1, 0), now, null);
+        Invoke(FindButton(scene, "Start Live Lesson"));
+        Assert.Equal(1, starts);
+
+        var running = new StudyLiveSessionState(now.AddSeconds(-65), now.AddSeconds(-65), 0, false);
+        scene.SetLiveSessionState(running, now);
+        Assert.Contains(Texts(scene), text => text.Content.Contains("Elapsed 01:05", StringComparison.Ordinal));
+        Invoke(FindButton(scene, "Pause"));
+        Invoke(FindButton(scene, "Stop & Save"));
+        Assert.Equal(1, pauses);
+        Assert.Equal(1, stops);
+
+        var paused = running with { AccumulatedSeconds = 65, ResumedAt = null, IsPaused = true };
+        scene.SetLiveSessionState(paused, now);
+        Assert.Contains(Texts(scene), text => text.Content == "Paused");
+        Invoke(FindButton(scene, "Resume"));
+        Assert.Equal(1, resumes);
+    }
+
+    [Fact]
+    public void Live_lesson_metadata_round_trips_active_state_and_completes_into_session_history()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var subjectId = Guid.NewGuid();
+        var lesson = new Lesson(Guid.NewGuid(), subjectId, "Pure", "Algebra", "{}", 0, now, now);
+        var live = new StudyLiveSessionState(now.AddMinutes(-2), now.AddMinutes(-1), 60, false);
+
+        var persisted = StudyLessonMetadata.WithLiveSession(lesson, live, now);
+        var restored = StudyLessonMetadata.ReadLiveSession(persisted);
+
+        Assert.NotNull(restored);
+        Assert.Equal(live.StartedAt, restored!.StartedAt);
+        Assert.False(restored.IsPaused);
+        Assert.True(restored.ElapsedSeconds(now) >= 120);
+
+        var completed = StudyLessonMetadata.CompleteLiveSession(persisted, restored, now);
+        Assert.Null(StudyLessonMetadata.ReadLiveSession(completed));
+        Assert.Contains(StudyLessonMetadata.Read(completed).Sessions, session => session.Minutes >= 2);
     }
 
     private static IEnumerable<Button> Buttons(StudySubjectScene scene) =>

@@ -18,7 +18,7 @@ internal sealed class ActionsFlyoutFinalScene
 
     public ActionsFlyoutFinalScene()
     {
-        Root = new Page { Name = "HeaderDropdown.Actions.Root", Layout = HavenLayout.Vertical };
+        Root = new Page { Name = "HeaderDropdown.Actions.Root", Layout = HavenLayout.Grid, Rows = "38px 58px 1fr 56px" };
         Root.SetValue(HavenProperties.Width, HavenLength.Px(690));
         Root.SetValue(HavenProperties.Height, HavenLength.Px(650));
         Root.SetValue(HavenProperties.Padding, HavenThickness.Parse("22px 24px"));
@@ -30,6 +30,7 @@ internal sealed class ActionsFlyoutFinalScene
         Root.SetValue(HavenProperties.Shadow, "Card");
 
         var title = new Text { Name = "HeaderDropdown.Actions.Title", Content = "Actions", Level = TextLevel.H1 };
+        title.SetValue(HavenProperties.Row, 0);
         title.SetValue(HavenProperties.Height, HavenLength.Px(38));
         title.SetValue(HavenProperties.FontSize, 28d);
         title.SetValue(HavenProperties.FontWeight, 800);
@@ -37,6 +38,7 @@ internal sealed class ActionsFlyoutFinalScene
         Root.Add(title);
 
         var searchHost = new Container { Name = "HeaderDropdown.Actions.SearchHost", Layout = HavenLayout.Overlay };
+        searchHost.SetValue(HavenProperties.Row, 1);
         searchHost.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         searchHost.SetValue(HavenProperties.Height, HavenLength.Px(58));
         searchHost.SetValue(HavenProperties.MinHeight, HavenLength.Px(58));
@@ -66,6 +68,7 @@ internal sealed class ActionsFlyoutFinalScene
         Root.Add(searchHost);
 
         _sections = new Container { Name = "HeaderDropdown.Actions.Sections", Layout = HavenLayout.Vertical };
+        _sections.SetValue(HavenProperties.Row, 2);
         _sections.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         _sections.SetValue(HavenProperties.Height, HavenLength.Fr(1));
         _sections.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
@@ -81,6 +84,7 @@ internal sealed class ActionsFlyoutFinalScene
             IconKey = "settings",
             Content = "Edit Actions"
         };
+        EditButton.SetValue(HavenProperties.Row, 3);
         EditButton.SetValue(HavenProperties.Width, HavenLength.Px(220));
         EditButton.SetValue(HavenProperties.Height, HavenLength.Px(56));
         EditButton.SetValue(HavenProperties.MinHeight, HavenLength.Px(56));

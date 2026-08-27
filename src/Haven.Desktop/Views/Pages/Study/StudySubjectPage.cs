@@ -32,7 +32,9 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
     private IReadOnlyList<ContainerResource> _subjectResources = [];
     private IReadOnlyList<PlannerStudyAssignment> _assignments = [];
     private IReadOnlyList<Conversation> _recentChats = [];
-    private DateTimeOffset? _studySessionStartedAt;
+    private StudyLiveSessionState? _liveSession;
+    private Guid? _liveSessionLessonId;
+    private readonly DispatcherTimer _liveSessionTimer;
     private bool _disposed;
 
     public StudySubjectPage(
@@ -55,6 +57,8 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
         _newChat = newChat ?? throw new ArgumentNullException(nameof(newChat));
         _openConversation = openConversation ?? throw new ArgumentNullException(nameof(openConversation));
         _openPlan = openPlan ?? throw new ArgumentNullException(nameof(openPlan));
+        _liveSessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _liveSessionTimer.Tick += OnLiveSessionTick;
 
         _scene = new StudySubjectScene();
         Scene = new HavenSceneControl { Root = _scene.Root };
@@ -73,6 +77,8 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
         _scene.RemoveResourceRequested += OnRemoveResourceRequested;
         _scene.SaveSubjectRequested += OnSaveSubjectRequested;
         _scene.StartSessionRequested += OnStartSessionRequested;
+        _scene.PauseSessionRequested += OnPauseSessionRequested;
+        _scene.ResumeSessionRequested += OnResumeSessionRequested;
         _scene.StopSessionRequested += OnStopSessionRequested;
         _scene.OpenConversationRequested += OnOpenConversationRequested;
         _scene.GeneratePaperRequested += OnGeneratePaperRequested;
@@ -106,6 +112,11 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
             var current = subjectsTask.Result.FirstOrDefault(item => item.Id == _subject.Id && !item.IsArchived);
             if (current is not null) _subject = current;
             _lessons = lessonsTask.Result.OrderBy(item => item.SortOrder).ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+            var activeLiveSession = _lessons
+                .Select(lesson => (Lesson: lesson, Session: StudyLessonMetadata.ReadLiveSession(lesson)))
+                .FirstOrDefault(item => item.Session is not null);
+            _liveSession = activeLiveSession.Session;
+            _liveSessionLessonId = activeLiveSession.Session is null ? null : activeLiveSession.Lesson.Id;
             _subjectResources = resourcesTask.Result.OrderByDescending(item => item.CreatedAt).ToArray();
             _assignments = assignmentsTask.Result;
             _recentChats = chatsTask.Result
@@ -120,7 +131,10 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
             var level = StudyLessonMetadata.LearningLevel(_lessons, completedAssignments);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
-                _scene.Render(_subject, _lessons, _subjectResources, _assignments, _recentChats, minutes, level, now, _studySessionStartedAt is not null));
+            {
+                UpdateLiveSessionTimer();
+                _scene.Render(_subject, _lessons, _subjectResources, _assignments, _recentChats, minutes, level, now, _liveSession);
+            });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -288,35 +302,96 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
         { _scene.SetStatus($"Could not save subject: {ex.Message}"); }
     }
 
-    private void OnStartSessionRequested(object? sender, EventArgs e)
+    private async void OnStartSessionRequested(object? sender, EventArgs e)
     {
-        if (_studySessionStartedAt is not null) return;
-        _studySessionStartedAt = DateTimeOffset.Now;
-        _scene.SetSessionState(true);
-        _scene.SetStatus("Study session started.");
-    }
-
-    private async void OnStopSessionRequested(object? sender, EventArgs e)
-    {
-        if (_studySessionStartedAt is not { } started) return;
+        if (_liveSession is not null) return;
         var lesson = DefaultLesson();
         if (lesson is null)
         {
-            _scene.SetStatus("Add a topic before recording study time.");
+            _scene.SetStatus("Add a topic before starting Live Lesson Tracking.");
             return;
         }
 
         var now = DateTimeOffset.Now;
-        var minutes = Math.Max(1, (int)Math.Round((now - started).TotalMinutes));
+        var live = new StudyLiveSessionState(now, now, 0, false);
         try
         {
-            await _containers.UpsertLessonAsync(StudyLessonMetadata.AddSession(lesson, started, minutes, now), CancellationToken.None);
-            _studySessionStartedAt = null;
-            await RefreshAsync(CancellationToken.None);
-            _scene.SetStatus($"Recorded {minutes} minute{(minutes == 1 ? string.Empty : "s")} of study.");
+            await _containers.UpsertLessonAsync(StudyLessonMetadata.WithLiveSession(lesson, live, now), CancellationToken.None);
+            _liveSession = live;
+            _liveSessionLessonId = lesson.Id;
+            UpdateLiveSessionTimer();
+            _scene.SetLiveSessionState(live, now);
+            _scene.SetStatus($"Live Lesson Tracking started for {lesson.Name}.");
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
-        { _scene.SetStatus($"Could not record study session: {ex.Message}"); }
+        { _scene.SetStatus($"Could not start Live Lesson Tracking: {ex.Message}"); }
+    }
+
+    private async void OnPauseSessionRequested(object? sender, EventArgs e)
+    {
+        if (_liveSession is not { IsPaused: false } live || LiveSessionLesson() is not { } lesson) return;
+        var now = DateTimeOffset.Now;
+        var paused = live with { AccumulatedSeconds = live.ElapsedSeconds(now), ResumedAt = null, IsPaused = true };
+        try
+        {
+            await _containers.UpsertLessonAsync(StudyLessonMetadata.WithLiveSession(lesson, paused, now), CancellationToken.None);
+            _liveSession = paused;
+            UpdateLiveSessionTimer();
+            _scene.SetLiveSessionState(paused, now);
+            _scene.SetStatus("Live Lesson Tracking paused.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        { _scene.SetStatus($"Could not pause Live Lesson Tracking: {ex.Message}"); }
+    }
+
+    private async void OnResumeSessionRequested(object? sender, EventArgs e)
+    {
+        if (_liveSession is not { IsPaused: true } live || LiveSessionLesson() is not { } lesson) return;
+        var now = DateTimeOffset.Now;
+        var resumed = live with { ResumedAt = now, IsPaused = false };
+        try
+        {
+            await _containers.UpsertLessonAsync(StudyLessonMetadata.WithLiveSession(lesson, resumed, now), CancellationToken.None);
+            _liveSession = resumed;
+            UpdateLiveSessionTimer();
+            _scene.SetLiveSessionState(resumed, now);
+            _scene.SetStatus("Live Lesson Tracking resumed.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        { _scene.SetStatus($"Could not resume Live Lesson Tracking: {ex.Message}"); }
+    }
+
+    private async void OnStopSessionRequested(object? sender, EventArgs e)
+    {
+        if (_liveSession is not { } live || LiveSessionLesson() is not { } lesson) return;
+        var now = DateTimeOffset.Now;
+        var minutes = Math.Max(1, (int)Math.Round(live.ElapsedSeconds(now) / 60d));
+        try
+        {
+            await _containers.UpsertLessonAsync(StudyLessonMetadata.CompleteLiveSession(lesson, live, now), CancellationToken.None);
+            _liveSession = null;
+            _liveSessionLessonId = null;
+            UpdateLiveSessionTimer();
+            await RefreshAsync(CancellationToken.None);
+            _scene.SetStatus($"Live Lesson Tracking stopped. Recorded {minutes} minute{(minutes == 1 ? string.Empty : "s")} of study.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        { _scene.SetStatus($"Could not stop Live Lesson Tracking: {ex.Message}"); }
+    }
+
+    private Lesson? LiveSessionLesson() => _liveSessionLessonId is { } id
+        ? _lessons.FirstOrDefault(item => item.Id == id)
+        : null;
+
+    private void UpdateLiveSessionTimer()
+    {
+        if (_liveSession is { IsPaused: false }) _liveSessionTimer.Start();
+        else _liveSessionTimer.Stop();
+    }
+
+    private void OnLiveSessionTick(object? sender, EventArgs e)
+    {
+        if (_liveSession is { } live) _scene.SetLiveSessionState(live, DateTimeOffset.Now);
     }
 
     private async void OnOpenConversationRequested(object? sender, Guid conversationId)
@@ -377,6 +452,8 @@ public sealed class StudySubjectPage : UserControl, IActivatablePage, IDisposabl
         if (_disposed) return;
         _disposed = true;
         Deactivate();
+        _liveSessionTimer.Stop();
+        _liveSessionTimer.Tick -= OnLiveSessionTick;
         _scene.Dispose();
     }
 }
@@ -413,7 +490,7 @@ internal sealed class StudySubjectScene : IDisposable
     private (int CurrentWeekMinutes, int WeeklyAverageMinutes, int TotalMinutes) _minutes;
     private (int Points, int Level, int PointsToNext) _level;
     private DateTimeOffset _now;
-    private bool _sessionActive;
+    private StudyLiveSessionState? _liveSession;
 
     public StudySubjectScene()
     {
@@ -476,6 +553,8 @@ internal sealed class StudySubjectScene : IDisposable
     public event EventHandler<Guid>? RemoveResourceRequested;
     public event EventHandler<StudySubjectDraft>? SaveSubjectRequested;
     public event EventHandler? StartSessionRequested;
+    public event EventHandler? PauseSessionRequested;
+    public event EventHandler? ResumeSessionRequested;
     public event EventHandler? StopSessionRequested;
     public event EventHandler<Guid>? OpenConversationRequested;
     public event EventHandler<StudyPaperRequest>? GeneratePaperRequested;
@@ -489,7 +568,7 @@ internal sealed class StudySubjectScene : IDisposable
         (int CurrentWeekMinutes, int WeeklyAverageMinutes, int TotalMinutes) minutes,
         (int Points, int Level, int PointsToNext) level,
         DateTimeOffset now,
-        bool sessionActive)
+        StudyLiveSessionState? liveSession)
     {
         _subject = subject;
         _lessons = lessons;
@@ -499,7 +578,7 @@ internal sealed class StudySubjectScene : IDisposable
         _minutes = minutes;
         _level = level;
         _now = now;
-        _sessionActive = sessionActive;
+        _liveSession = liveSession;
         _title.Content = subject.Name;
         _subjectName.Text = subject.Name;
         _subjectContext.Text = subject.Context;
@@ -515,9 +594,10 @@ internal sealed class StudySubjectScene : IDisposable
         _status.SetValue(HavenProperties.Visibility, string.IsNullOrWhiteSpace(value) ? HavenVisibility.Collapsed : HavenVisibility.Visible);
     }
 
-    public void SetSessionState(bool active)
+    public void SetLiveSessionState(StudyLiveSessionState? liveSession, DateTimeOffset now)
     {
-        _sessionActive = active;
+        _liveSession = liveSession;
+        _now = now;
         if (_tab == StudySubjectTab.Dashboard) RebuildContent();
     }
 
@@ -583,18 +663,39 @@ internal sealed class StudySubjectScene : IDisposable
         stats.Add(Stat(remaining.ToString(), "Remaining Assignments", $"This week: {completePct}% complete"));
         _content.Add(stats);
 
-        var session = new HavenButton
+        _content.Add(Heading("Live Lesson Tracking"));
+        if (_liveSession is null)
         {
-            Content = _sessionActive ? "End Study Session" : "Start Study Session",
-            Variant = _sessionActive ? ButtonVariant.Secondary : ButtonVariant.Primary
-        };
-        session.SetValue(HavenProperties.MaxWidth, HavenLength.Px(240));
-        session.Invoked += (_, _) =>
+            _content.Add(Muted("Track live study time for this subject. The active session is stored with the owning lesson and restores after relaunch."));
+            var start = new HavenButton { Name = "Study.LiveLesson.Start", Content = "Start Live Lesson", Variant = ButtonVariant.Primary };
+            start.SetValue(HavenProperties.MaxWidth, HavenLength.Px(240));
+            start.Invoked += (_, _) => StartSessionRequested?.Invoke(this, EventArgs.Empty);
+            _content.Add(start);
+        }
+        else
         {
-            if (_sessionActive) StopSessionRequested?.Invoke(this, EventArgs.Empty);
-            else StartSessionRequested?.Invoke(this, EventArgs.Empty);
-        };
-        _content.Add(session);
+            var elapsed = FormatElapsed(_liveSession.ElapsedSeconds(_now));
+            var state = _liveSession.IsPaused ? "Paused" : "Tracking live";
+            _content.Add(Info(state, $"Elapsed {elapsed} • Started {_liveSession.StartedAt.LocalDateTime:g}"));
+            var controls = new HavenContainer { Layout = HavenLayout.Horizontal };
+            controls.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+            if (_liveSession.IsPaused)
+            {
+                var resume = new HavenButton { Name = "Study.LiveLesson.Resume", Content = "Resume", Variant = ButtonVariant.Primary };
+                resume.Invoked += (_, _) => ResumeSessionRequested?.Invoke(this, EventArgs.Empty);
+                controls.Add(resume);
+            }
+            else
+            {
+                var pause = new HavenButton { Name = "Study.LiveLesson.Pause", Content = "Pause", Variant = ButtonVariant.Secondary };
+                pause.Invoked += (_, _) => PauseSessionRequested?.Invoke(this, EventArgs.Empty);
+                controls.Add(pause);
+            }
+            var stop = new HavenButton { Name = "Study.LiveLesson.Stop", Content = "Stop & Save", Variant = ButtonVariant.Danger };
+            stop.Invoked += (_, _) => StopSessionRequested?.Invoke(this, EventArgs.Empty);
+            controls.Add(stop);
+            _content.Add(controls);
+        }
 
         _content.Add(Heading("Outstanding Assignments"));
         var outstanding = _assignments.Where(item => item.Task.Status != PlannerTaskStatus.Completed)
@@ -837,6 +938,14 @@ internal sealed class StudySubjectScene : IDisposable
 
     private static string FormatMinutes(int minutes) =>
         minutes < 60 ? $"{minutes} min" : $"{minutes / 60d:0.#} h";
+
+    private static string FormatElapsed(int seconds)
+    {
+        var value = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
 
     private static string FormatBytes(long bytes)
     {

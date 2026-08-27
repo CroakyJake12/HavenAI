@@ -151,7 +151,7 @@ public sealed class ChatHavenSceneTests
     }
 
     [Fact]
-    public void Chat_scene_uses_same_shared_add_menu_prefab_as_go()
+    public void Chat_scene_uses_shared_add_menu_prefab_in_attach_to_chat_mode()
     {
         using var scene = new ChatHavenScene();
 
@@ -160,7 +160,7 @@ public sealed class ChatHavenSceneTests
 
         scene.ShowAddMenu();
         Assert.Equal(HavenVisibility.Visible, scene.AddOverlay.GetValue(HavenProperties.Visibility));
-        Assert.Equal("Manage Responses", scene.AddMenuPrefab.DescendantsAndSelf().OfType<Text>().First(text => text.Content == "Manage Responses").Content);
+        Assert.Equal("Attach to Chat", scene.AddMenuPrefab.GetComponent<Text>("MenuTitle").Content);
 
         scene.HideAddMenu();
         Assert.Equal(HavenVisibility.Collapsed, scene.AddOverlay.GetValue(HavenProperties.Visibility));

@@ -15,6 +15,7 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
 {
     private readonly SpaceRegistry _registry;
     private readonly Func<SpaceDefinition, Task>? _launchSpace;
+    private readonly Func<Guid, Task>? _deleteSpace;
     private readonly Func<SpaceDefinition, Task>? _manageLayout;
     private readonly SpaceGeneratedSurfaceRenderer? _generatedSurfaceRenderer;
     private readonly SpaceEditPlanner? _editPlanner;
@@ -29,7 +30,7 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         SpaceRegistry registry,
         Func<SpaceDefinition, Task>? launchSpace = null,
         Func<SpaceDefinition, Task>? manageLayout = null)
-        : this(registry, null, null, launchSpace, manageLayout)
+        : this(registry, null, null, launchSpace, null, manageLayout)
     {
     }
 
@@ -38,12 +39,14 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         SpaceGeneratedSurfaceRenderer? generatedSurfaceRenderer,
         SpaceEditPlanner? editPlanner,
         Func<SpaceDefinition, Task>? launchSpace = null,
+        Func<Guid, Task>? deleteSpace = null,
         Func<SpaceDefinition, Task>? manageLayout = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _generatedSurfaceRenderer = generatedSurfaceRenderer;
         _editPlanner = editPlanner;
         _launchSpace = launchSpace;
+        _deleteSpace = deleteSpace;
         _manageLayout = manageLayout;
         _scene = new SpacesHavenScene();
         _scene.SetLaunchAvailable(_launchSpace is not null);
@@ -214,7 +217,8 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
     {
         await RunMutationAsync(async () =>
         {
-            await _registry.DeleteAsync(id, CancellationToken.None);
+            if (_deleteSpace is not null) await _deleteSpace(id);
+            else await _registry.DeleteAsync(id, CancellationToken.None);
             if (_selectedId == id) _selectedId = null;
             await RefreshAsync();
         }, "delete Space");

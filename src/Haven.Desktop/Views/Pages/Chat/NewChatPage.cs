@@ -23,7 +23,7 @@ namespace Haven.Desktop.Views.Pages.Chat;
 /// Production Haven-native conversation surface. Avalonia owns only the platform host/window/file-picker boundary;
 /// visible Chat composition, editing, transcript rendering, menus and generated UI live in Haven scene elements.
 /// </summary>
-public sealed class NewChatPage : UserControl, IDisposable
+public sealed partial class NewChatPage : UserControl, IDisposable
 {
     private readonly HavenEventBus _bus;
     private readonly IConversationRepository _conversations;
@@ -31,6 +31,8 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly ChatSessionService _sessions;
     private readonly IConversationSafetyService _safety;
     private readonly IConversationVersioningService _versioning;
+    private readonly IMessageAttachmentService? _messageAttachments;
+    private readonly IConversationProductionRepository? _conversationProduction;
     private readonly UserPreferencesService _preferences;
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
@@ -53,6 +55,8 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly List<PromptDefinition> _activeInstructions = [];
     private readonly List<string> _attachedImages = [];
     private readonly Dictionary<string, string> _attachedContext = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<MessageAttachment> _persistedAttachments = [];
+    private readonly Dictionary<Guid, string> _attachmentSourcePaths = [];
     private readonly TaskAttachmentContext _taskAttachments = new();
     private readonly Dictionary<Guid, string> _thinkingContent = [];
     private readonly Dictionary<Guid, long> _thinkingStartTick = [];
@@ -74,6 +78,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private ModelDescriptor? _selectedModel;
     private string? _pendingInstruction;
     private bool _pendingInstructionPreservesDraft;
+    private ChatMentionQuery? _activeMention;
     private CancellationTokenSource? _sendCancellation;
     private readonly DispatcherTimer _sendProgressTimer;
     private bool _isSending;
@@ -104,7 +109,9 @@ public sealed class NewChatPage : UserControl, IDisposable
         DashboardTemplateRuntime dashboardTemplate,
         AssessmentTemplateRuntime assessmentTemplate,
         WorkflowTemplateRuntime workflowTemplate,
-        CustomTemplateRuntime customTemplate)
+        CustomTemplateRuntime customTemplate,
+        IMessageAttachmentService? messageAttachments = null,
+        IConversationProductionRepository? conversationProduction = null)
     {
         _bus = bus;
         _conversations = conversations;
@@ -112,6 +119,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         _sessions = sessions;
         _safety = safety;
         _versioning = versioning;
+        _messageAttachments = messageAttachments;
+        _conversationProduction = conversationProduction;
         _preferences = preferences;
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
@@ -265,6 +274,14 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (HasStarted) throw new InvalidOperationException("A started conversation cannot change its registered workspace context.");
         _registeredContextOverride = string.IsNullOrWhiteSpace(context) ? null : context.Trim();
         _effortOverride = effortOverride;
+    }
+
+    public async Task AssignSpaceAsync(Guid? spaceId)
+    {
+        _conversation = _conversation with { SpaceId = spaceId, UpdatedAt = DateTimeOffset.UtcNow };
+        if (!_conversation.IsTemporary)
+            await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ShowAddMenu() => _scene.ShowAddMenu();
@@ -452,14 +469,18 @@ public sealed class NewChatPage : UserControl, IDisposable
         _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
+        _pendingAttachmentIds.Clear();
+        _persistedAttachments.Clear();
+        _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
         _pendingInstruction = null;
         _pendingInstructionPreservesDraft = false;
-        RefreshAttachmentStatus();
         RefreshResponseControls();
         _redoMessages.Clear();
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
+        await LoadPendingPersistedAttachmentsAsync(conversation);
+        RefreshAttachmentStatus();
         await RefreshSafetyStateAsync();
         RefreshMessages();
         await RefreshContextEntriesAsync();
@@ -535,8 +556,88 @@ public sealed class NewChatPage : UserControl, IDisposable
     public async Task AddFilesAsync(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        var selected = paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => Path.GetFullPath(path.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (selected.Length == 0) return;
+
+        if (_messageAttachments is null)
+        {
+            await AddFilesLegacyFallbackAsync(selected);
+            return;
+        }
+
+        if (_conversation.IsTemporary)
+        {
+            _scene.SetStatus("Files are not persisted in a temporary chat. Turn off Temporary Chat before attaching files.");
+            return;
+        }
+
+        try
+        {
+            await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            _scene.SetStatus("This chat could not be saved before attaching files: " + exception.Message);
+            return;
+        }
+
+        Guid? branchId;
+        try
+        {
+            branchId = await EnsureAttachmentBranchAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            _scene.SetStatus("This chat could not prepare attachment persistence: " + exception.Message);
+            return;
+        }
+
         var added = 0;
-        foreach (var path in paths.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+        var failed = 0;
+        foreach (var path in selected)
+        {
+            try
+            {
+                var attachment = await _messageAttachments.ImportAsync(
+                    _conversation.Id,
+                    messageId: null,
+                    branchId,
+                    path,
+                    options: null,
+                    CancellationToken.None);
+                _pendingAttachmentIds.Add(attachment.Id);
+                _persistedAttachments.RemoveAll(item => item.Id == attachment.Id);
+                _persistedAttachments.Add(attachment);
+                _attachmentSourcePaths[attachment.Id] = path;
+                _taskAttachments.AttachFiles([path]);
+                added++;
+            }
+            catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                failed++;
+                _scene.SetStatus($"Could not attach {Path.GetFileName(path)}: {exception.Message}");
+            }
+        }
+
+        await RefreshPersistedAttachmentPromptContextAsync();
+        if (added > 0) await SavePendingAttachmentDraftAsync();
+        RefreshAttachmentStatus();
+        if (added > 0)
+        {
+            var status = $"{added} file{(added == 1 ? "" : "s")} attached to this chat and added to File Library.";
+            if (failed > 0) status += $" {failed} file{(failed == 1 ? "" : "s")} could not be attached.";
+            _scene.SetStatus(status);
+        }
+    }
+
+    private async Task AddFilesLegacyFallbackAsync(IEnumerable<string> paths)
+    {
+        var added = 0;
+        foreach (var path in paths)
         {
             var extension = Path.GetExtension(path).ToLowerInvariant();
             if (extension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif")
@@ -553,14 +654,9 @@ public sealed class NewChatPage : UserControl, IDisposable
             {
                 var info = new FileInfo(path);
                 if (info.Length > 2_000_000)
-                {
                     _attachedContext[path] = $"Attached file: {info.Name} ({info.Length:N0} bytes; content omitted because it is too large).";
-                    _taskAttachments.AttachFiles([path]);
-                    added++;
-                    continue;
-                }
-                var text = await File.ReadAllTextAsync(path, CancellationToken.None);
-                _attachedContext[path] = $"Attached file {info.Name}:\n{text}";
+                else
+                    _attachedContext[path] = $"Attached file {info.Name}:\n{await File.ReadAllTextAsync(path, CancellationToken.None)}";
                 _taskAttachments.AttachFiles([path]);
                 added++;
             }
@@ -573,6 +669,31 @@ public sealed class NewChatPage : UserControl, IDisposable
         {
             _scene.SetStatus($"{added} file{(added == 1 ? "" : "s")} attached to this chat.");
             RefreshAttachmentStatus();
+        }
+    }
+
+    private async Task RefreshPersistedAttachmentPromptContextAsync()
+    {
+        if (_messageAttachments is null) return;
+        _attachedImages.Clear();
+        _attachedContext.Remove("persisted-attachments");
+        if (_persistedAttachments.Count == 0) return;
+        try
+        {
+            var context = await _messageAttachments.BuildPromptContextAsync(
+                _conversation.Id,
+                _persistedAttachments.Select(item => item.Id).ToArray(),
+                options: null,
+                CancellationToken.None);
+            _attachedImages.AddRange(context.ImageBase64);
+            var sections = new List<string>();
+            if (!string.IsNullOrWhiteSpace(context.ExtractedText)) sections.Add(context.ExtractedText);
+            if (context.Notices.Count > 0) sections.Add("Attachment processing:\n" + string.Join("\n", context.Notices));
+            if (sections.Count > 0) _attachedContext["persisted-attachments"] = string.Join("\n\n", sections);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus("Attached file context could not be loaded: " + exception.Message);
         }
     }
 
@@ -687,20 +808,28 @@ public sealed class NewChatPage : UserControl, IDisposable
 
         _scene.SendRequested += async (_, _) => await SubmitCurrentInstructionAsync();
         _scene.StopRequested += OnStopRequested;
+        _scene.Instruction.Invalidated += OnComposerEditCompleted;
         _scene.ResolveProblemsRequested += (_, _) =>
         {
             _bus.Fire("Chat.Problems.Resolve.Click");
             ShowResolveProblems();
         };
-        _scene.AddActionSelected += (_, action) => AddActionSelected?.Invoke(this, action);
+        _scene.AddActionSelected += (_, action) =>
+        {
+            if (_activeMention is not null) ConsumeActiveMention();
+            AddActionSelected?.Invoke(this, action);
+        };
         _scene.CatalogItemSelected += (_, selection) =>
         {
+            if (_activeMention is not null) ConsumeActiveMention();
             ApplyAddSelection(selection);
             AddCatalogItemSelected?.Invoke(this, selection);
+            FocusComposer();
         };
         _scene.MessageActionRequested += OnMessageActionRequested;
         _scene.MarkdownCodeActionRequested += OnMarkdownCodeActionRequested;
         _scene.ContextRemoveRequested += async (_, entryId) => await RemoveContextEntryAsync(entryId);
+        _scene.AttachmentRemoveRequested += OnAttachmentRemoveRequested;
         Scene.InputSubmitted += OnInputSubmitted;
         Scene.PointerPressedOutside += _scene.HideAddMenu;
     }
@@ -733,6 +862,31 @@ public sealed class NewChatPage : UserControl, IDisposable
             _ = surface.SubmitInputAsync(input);
             return;
         }
+    }
+
+    private void OnComposerEditCompleted(object? sender, EventArgs e)
+    {
+        if (ChatMentionQueryParser.TryParse(_scene.Instruction.Text, _scene.Instruction.CaretIndex, out var mention))
+        {
+            _activeMention = mention;
+            _scene.ShowMentionSearch(mention.Query);
+            return;
+        }
+
+        if (_activeMention is null) return;
+        _activeMention = null;
+        _scene.HideAddMenu();
+    }
+
+    private void ConsumeActiveMention()
+    {
+        if (_activeMention is not { } mention) return;
+        _activeMention = null;
+        var text = _scene.Instruction.Text;
+        if (mention.Start < 0 || mention.Length <= 0 || mention.Start + mention.Length > text.Length) return;
+        if (text[mention.Start] != '@') return;
+        _scene.Instruction.Text = text.Remove(mention.Start, mention.Length);
+        _scene.Instruction.SetSelection(mention.Start, mention.Start);
     }
 
     private void ShowResolveProblems()
@@ -823,6 +977,8 @@ public sealed class NewChatPage : UserControl, IDisposable
 
         try
         {
+            Guid? emittedUserMessageId = null;
+            var sendReportedFailure = false;
             var deltaBuffer = new StringBuilder();
             Guid? bufferedMessageId = null;
             var nextDeltaFlushAt = Environment.TickCount64 + 50;
@@ -867,10 +1023,16 @@ public sealed class NewChatPage : UserControl, IDisposable
                     nextDeltaFlushAt = Environment.TickCount64 + 50;
                     continue;
                 }
+                if (streamEvent.Kind == ChatStreamEventKind.UserMessage && streamEvent.Message is not null)
+                    emittedUserMessageId = streamEvent.Message.Id;
+                else if (streamEvent.Kind == ChatStreamEventKind.PreflightFailed)
+                    sendReportedFailure = true;
                 await FlushDeltasAsync();
                 await Dispatcher.UIThread.InvokeAsync(() => ApplyStreamEvent(streamEvent));
             }
             await FlushDeltasAsync();
+            if (!sendReportedFailure && emittedUserMessageId is { } userMessageId)
+                await AssociatePendingAttachmentsWithUserMessageAsync(userMessageId, CancellationToken.None);
             await SetStatusAsync(string.Empty);
         }
         catch (OperationCanceledException)
@@ -1543,6 +1705,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private async Task BranchIntoNewChatAsync(ChatMessage throughMessage)
     {
         if (!await EnsureConversationMayActAsync("chat.branch")) return;
+        await SavePendingAttachmentDraftAsync();
         var index = _messages.FindIndex(message => message.Id == throughMessage.Id);
         if (index < 0) return;
         var source = _conversation;
@@ -1556,6 +1719,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         await _conversations.UpsertConversationAsync(branch, CancellationToken.None);
         foreach (var copy in copies) await _conversations.AddMessageAsync(copy, CancellationToken.None);
         _conversation = branch;
+        ClearPendingPersistedAttachmentsFromComposer();
         _messages.Clear();
         _messages.AddRange(copies);
         ClearGeneratedSurfaces();
@@ -1586,12 +1750,8 @@ public sealed class NewChatPage : UserControl, IDisposable
     private async Task ContinueInExistingChatAsync(Conversation target, ChatMessage sourceMessage)
     {
         if (!await EnsureConversationMayActAsync("chat.branch-existing")) return;
-        var messages = await _conversations.GetMessagesAsync(target.Id, CancellationToken.None);
-        _conversation = target;
-        _messages.Clear();
-        _messages.AddRange(messages);
-        ClearGeneratedSurfaces();
-        RefreshMessages();
+        await SavePendingAttachmentDraftAsync();
+        await LoadConversationAsync(target);
         SetDraft(sourceMessage.Content);
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -1622,6 +1782,9 @@ public sealed class NewChatPage : UserControl, IDisposable
         _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
+        _pendingAttachmentIds.Clear();
+        _persistedAttachments.Clear();
+        _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
         _messages.Clear();
         _redoMessages.Clear();
@@ -1667,19 +1830,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         RefreshAttachmentStatus();
     }
 
-    private void RefreshAttachmentStatus()
-    {
-        if (_taskAttachments.IsEmpty)
-        {
-            _scene.SetAttachmentStatus(null);
-            return;
-        }
-        var parts = new List<string>();
-        if (_taskAttachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _taskAttachments.Apps.Select(item => item.Name)));
-        if (_taskAttachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _taskAttachments.Capabilities.Select(item => item.Name)));
-        if (_taskAttachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _taskAttachments.Files.Select(Path.GetFileName)));
-        _scene.SetAttachmentStatus(string.Join("  â€¢  ", parts));
-    }
+    private void RefreshAttachmentStatus() =>
+        _scene.SetAttachmentChips(BuildAttachmentChips());
 
     /// <summary>
     /// Reloads the persisted context rows for the active conversation into the scene Context card,
@@ -1875,6 +2027,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         _sendCancellation?.Dispose();
         _sendProgressTimer.Stop();
         _scene.StopRequested -= OnStopRequested;
+        _scene.Instruction.Invalidated -= OnComposerEditCompleted;
+        _scene.AttachmentRemoveRequested -= OnAttachmentRemoveRequested;
         Scene.InputSubmitted -= OnInputSubmitted;
         Scene.PointerPressedOutside -= _scene.HideAddMenu;
         ClearGeneratedSurfaces();

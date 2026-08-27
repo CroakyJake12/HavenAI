@@ -152,6 +152,7 @@ public sealed class SpaceRegistry
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var wasCurrent = await GetCurrentSpaceIdAsync(cancellationToken).ConfigureAwait(false) == id;
         await MutateAsync(state =>
         {
             var existing = FindRequired(state.Spaces, id);
@@ -159,6 +160,8 @@ public sealed class SpaceRegistry
                 throw new InvalidOperationException("Built-in Spaces cannot be deleted. Fork one if you need an independent version.");
             return (state with { Spaces = state.Spaces.Where(space => space.Id != id).ToArray() }, true);
         }, cancellationToken).ConfigureAwait(false);
+        if (wasCurrent)
+            await SetCurrentSpaceIdAsync(null, cancellationToken).ConfigureAwait(false);
     }
 
     public Task<SpaceDefinition> SetLayoutAsync(Guid id, SpaceLayoutDocument? layout, CancellationToken cancellationToken = default)

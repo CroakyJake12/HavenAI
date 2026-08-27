@@ -30,7 +30,7 @@ public sealed class TopRailDropdownRegressionTests
             Assert.True(scene.EditButton.Bounds.Bottom <= scene.Root.Bounds.Bottom + 0.01d);
             var sections = Assert.IsType<Container>(scene.Root.DescendantsAndSelf()
                 .Single(element => element.Name == "HeaderDropdown.Actions.Sections"));
-            Assert.True(sections.ScrollMaxY > 0);
+            Assert.True(sections.MaxScrollY > 0);
 
             var router = new HavenInputRouter(scene.Root);
             var point = new HavenPoint(sections.Bounds.X + 12, sections.Bounds.Y + 12);

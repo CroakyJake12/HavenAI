@@ -9,6 +9,7 @@
 
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
@@ -50,6 +51,38 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         Assert.Contains("persistent attachment sentence", context.ExtractedText, StringComparison.OrdinalIgnoreCase);
         Assert.Single(context.ImageBase64);
         Assert.Contains(context.Notices, item => item.Contains("sent directly", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PendingAttachmentDraftRemainsUnboundUntilSuccessfulUserMessageAssociation()
+    {
+        var (conversations, production, service) = await CreateServicesAsync();
+        var now = DateTimeOffset.UtcNow;
+        var conversation = ConversationAt(now);
+        await conversations.UpsertConversationAsync(conversation, CancellationToken.None);
+        var branch = await production.EnsureRootBranchAsync(conversation.Id, CancellationToken.None);
+        var path = Path.Combine(_paths.DataDirectory, "pending.txt");
+        await File.WriteAllTextAsync(path, "pending attachment content");
+
+        var attachment = await service.ImportAsync(conversation.Id, null, branch.Id, path, null, CancellationToken.None);
+        await production.SaveDraftAsync(
+            new ConversationDraft(conversation.Id, branch.Id, "draft", JsonSerializer.Serialize(new[] { attachment.Id }), now),
+            CancellationToken.None);
+
+        var pending = Assert.Single(await production.GetAttachmentsAsync(conversation.Id, messageId: null, CancellationToken.None));
+        Assert.Null(pending.MessageId);
+        var draft = await production.GetDraftAsync(conversation.Id, branch.Id, CancellationToken.None);
+        Assert.NotNull(draft);
+        Assert.Contains(attachment.Id, JsonSerializer.Deserialize<Guid[]>(draft!.AttachmentIdsJson) ?? []);
+
+        var userMessage = new ChatMessage(Guid.NewGuid(), conversation.Id, MessageRole.User, "send with attachment", null, null, null, now.AddSeconds(1));
+        await conversations.AddMessageAsync(userMessage, CancellationToken.None);
+        await production.UpsertAttachmentAsync(attachment with { MessageId = userMessage.Id, UpdatedAt = now.AddSeconds(1) }, CancellationToken.None);
+        await production.DeleteDraftAsync(conversation.Id, branch.Id, CancellationToken.None);
+
+        var associated = Assert.Single(await production.GetAttachmentsAsync(conversation.Id, userMessage.Id, CancellationToken.None));
+        Assert.Equal(userMessage.Id, associated.MessageId);
+        Assert.Null(await production.GetDraftAsync(conversation.Id, branch.Id, CancellationToken.None));
     }
 
     /// <summary>

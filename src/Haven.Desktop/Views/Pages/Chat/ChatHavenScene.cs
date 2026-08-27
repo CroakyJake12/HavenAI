@@ -65,6 +65,10 @@ internal sealed partial class ChatHavenScene : IDisposable
         Root = BuildRoot();
         _dynamicUi = new DynamicUI(Root, _templates, _prefabs);
         Chatbox = Root.DescendantsAndSelf().OfType<Prefab>().Single(prefab => prefab.PrefabID == "Chatbox");
+        ChatboxRoot = Chatbox.GetComponent<Container>("ChatboxRoot");
+        AttachmentChips = Chatbox.GetComponent<Container>("AttachmentChips");
+        ComposerRow = Chatbox.GetComponent<Container>("ComposerRow");
+        InstructionViewport = Chatbox.GetComponent<Container>("InstructionViewport");
         Instruction = Chatbox.GetComponent<Input>("Instruction");
         AddButton = Chatbox.GetComponent<HavenButton>("AddMenu");
         SendButton = Chatbox.GetComponent<HavenButton>("Send");
@@ -95,7 +99,7 @@ internal sealed partial class ChatHavenScene : IDisposable
         AddMenuPrefab.SetValue(HavenProperties.ZIndex, 100);
         AddMenuPrefab.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
         Root.Add(AddMenuPrefab);
-        _addMenu = new ChatAddMenuSurface(AddMenuPrefab);
+        _addMenu = new ChatAddMenuSurface(AddMenuPrefab, composerOwnsSearch: true, showThreadSettings: false);
 
         AddButton.Invoked += OnAddInvoked;
         SendButton.Invoked += OnSendInvoked;
@@ -113,6 +117,10 @@ internal sealed partial class ChatHavenScene : IDisposable
 
     public Page Root { get; }
     public Prefab Chatbox { get; }
+    public Container ChatboxRoot { get; }
+    public Container AttachmentChips { get; }
+    public Container ComposerRow { get; }
+    public Container InstructionViewport { get; }
     public Input Instruction { get; }
     public HavenButton AddButton { get; }
     public HavenButton SendButton { get; }
@@ -667,6 +675,7 @@ internal sealed partial class ChatHavenScene : IDisposable
     private void OnResolveInvoked(object? sender, EventArgs e) => ResolveProblemsRequested?.Invoke(this, EventArgs.Empty);
 
     public void ShowAddMenu() => _addMenu.Show();
+    public void ShowMentionSearch(string query) => _addMenu.ShowMentionSearch(query);
 
     public void HideAddMenu() => _addMenu.Hide();
 

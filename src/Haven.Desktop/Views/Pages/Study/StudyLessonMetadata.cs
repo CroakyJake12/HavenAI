@@ -7,6 +7,16 @@ namespace Haven.Desktop.Views.Pages.Study;
 
 internal sealed record StudySessionEntry(DateTimeOffset StartedAt, int Minutes);
 
+internal sealed record StudyLiveSessionState(
+    DateTimeOffset StartedAt,
+    DateTimeOffset? ResumedAt,
+    int AccumulatedSeconds,
+    bool IsPaused)
+{
+    public int ElapsedSeconds(DateTimeOffset now) => Math.Max(0, AccumulatedSeconds) +
+        (!IsPaused && ResumedAt is { } resumed ? Math.Max(0, (int)Math.Floor((now - resumed).TotalSeconds)) : 0);
+}
+
 internal sealed record StudyLessonState(
     string Rag,
     DateTimeOffset? LastReviewedAt,
@@ -80,6 +90,57 @@ internal static class StudyLessonMetadata
         else state["paper"] = paper.Trim();
         if (string.IsNullOrWhiteSpace(section)) state.Remove("section");
         else state["section"] = section.Trim();
+        return lesson with { StructureJson = root.ToJsonString(), UpdatedAt = now };
+    }
+
+    public static StudyLiveSessionState? ReadLiveSession(Lesson lesson)
+    {
+        ArgumentNullException.ThrowIfNull(lesson);
+        var state = ParseRoot(lesson.StructureJson)[HavenKey] as JsonObject;
+        if (state?["liveSession"] is not JsonObject live) return null;
+        var startedText = live["startedAt"]?.GetValue<string>();
+        if (!DateTimeOffset.TryParse(startedText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var started)) return null;
+        DateTimeOffset? resumed = null;
+        var resumedText = live["resumedAt"]?.GetValue<string>();
+        if (DateTimeOffset.TryParse(resumedText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedResumed)) resumed = parsedResumed;
+        var accumulated = Math.Max(0, live["accumulatedSeconds"]?.GetValue<int>() ?? 0);
+        var paused = live["isPaused"]?.GetValue<bool>() ?? resumed is null;
+        return new StudyLiveSessionState(started, paused ? null : resumed ?? started, accumulated, paused);
+    }
+
+    public static Lesson WithLiveSession(Lesson lesson, StudyLiveSessionState live, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(lesson);
+        ArgumentNullException.ThrowIfNull(live);
+        var root = ParseRoot(lesson.StructureJson);
+        var state = EnsureState(root);
+        state["liveSession"] = new JsonObject
+        {
+            ["startedAt"] = live.StartedAt.ToString("O", CultureInfo.InvariantCulture),
+            ["resumedAt"] = live.ResumedAt?.ToString("O", CultureInfo.InvariantCulture),
+            ["accumulatedSeconds"] = Math.Max(0, live.AccumulatedSeconds),
+            ["isPaused"] = live.IsPaused
+        };
+        return lesson with { StructureJson = root.ToJsonString(), UpdatedAt = now };
+    }
+
+    public static Lesson CompleteLiveSession(Lesson lesson, StudyLiveSessionState live, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(lesson);
+        ArgumentNullException.ThrowIfNull(live);
+        var elapsedSeconds = Math.Max(1, live.ElapsedSeconds(now));
+        var minutes = Math.Max(1, (int)Math.Round(elapsedSeconds / 60d));
+        var root = ParseRoot(lesson.StructureJson);
+        var state = EnsureState(root);
+        state.Remove("liveSession");
+        var sessions = state["sessions"] as JsonArray ?? [];
+        state["sessions"] = sessions;
+        sessions.Add(new JsonObject
+        {
+            ["startedAt"] = live.StartedAt.ToString("O", CultureInfo.InvariantCulture),
+            ["minutes"] = minutes
+        });
+        while (sessions.Count > 500) sessions.RemoveAt(0);
         return lesson with { StructureJson = root.ToJsonString(), UpdatedAt = now };
     }
 
