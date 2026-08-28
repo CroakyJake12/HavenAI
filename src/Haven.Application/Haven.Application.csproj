@@ -5,5 +5,8 @@
   Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
 -->
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Haven.Core\Haven.Core.csproj" /></ItemGroup>
 </Project>
