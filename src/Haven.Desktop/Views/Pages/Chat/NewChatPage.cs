@@ -63,7 +63,6 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly Dictionary<Guid, long> _thinkingEndTick = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), ChatGenUiSurfaceMount> _generatedSurfaces = [];
     private readonly ChatGenUiNativeControlResolver _genUiNativeResolver = new();
-    private DualModelChatController? _dual;
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
     private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
@@ -180,6 +179,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public bool HasStarted => _messages.Count > 0;
     public string ActiveAgentName => _activeAgent?.Name ?? "No Agent (Default)";
     public ChatActionMode EffectiveChatActionMode => _chatActionModeOverride ?? ChatActionMode.AllowBasicActions;
+    public GenerativeUiResponseMode EffectiveChatVisualMode => _chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto;
 
     public void ConfigureMode(ModeDefinition mode)
     {
@@ -473,6 +473,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _persistedAttachments.Clear();
         _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
+        _multipleResponseModels.Clear();
         _pendingInstruction = null;
         _pendingInstructionPreservesDraft = false;
         RefreshResponseControls();
@@ -517,6 +518,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 RefreshAttachmentStatus();
                 break;
         }
+        RefreshAttachmentStatus();
         RefreshResponseControls();
     }
 
@@ -796,19 +798,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _bus.RegisterElement("Chat.Composer.Send", Scene);
         _bus.RegisterElement("Chat.Problems.Resolve", Scene);
 
-        // Dual-model comparison is optional: it only appears when App services exposed DualModelService.
-        if (App.Services?.GetService<DualModelService>() is { } dualModels)
-        {
-            _dual = new DualModelChatController(dualModels);
-            _scene.EnsureDualModelBar();
-            _scene.DualToggleRequested += OnDualToggleRequested;
-            _scene.DualModelPickerRequested += OnDualModelPickerRequested;
-            _scene.DualSecondModelChosen += OnDualSecondModelChosen;
-        }
+        WireMultipleResponses();
 
         _scene.SendRequested += async (_, _) => await SubmitCurrentInstructionAsync();
         _scene.StopRequested += OnStopRequested;
-        _scene.Instruction.Invalidated += OnComposerEditCompleted;
+        _scene.Instruction.EditCompleted += OnComposerEditCompleted;
+        _scene.ManageChatRequested += OnManageChatRequested;
         _scene.ResolveProblemsRequested += (_, _) =>
         {
             _bus.Fire("Chat.Problems.Resolve.Click");
@@ -935,29 +930,39 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private async Task SubmitCurrentInstructionAsync()
     {
         var instruction = _scene.Instruction.Text.Trim();
-        if (_isSending || string.IsNullOrWhiteSpace(instruction)) return;
-        if (!await EnsureConversationMayActAsync("chat.send")) return;
-        if (_selectedModel is null)
+        if (string.IsNullOrWhiteSpace(instruction)) return;
+        if (_isSending || _submissionStarting)
         {
-            _pendingInstruction = instruction;
-            _pendingInstructionPreservesDraft = false;
-            _scene.SetStatus("Connecting to the selected local modelâ€¦");
+            QueueInstruction(instruction);
+            FocusComposer();
             return;
         }
 
-        if (_dual is { IsActive: true })
+        _submissionStarting = true;
+        try
         {
-            if (!_dual.CanRun)
+            if (!await EnsureConversationMayActAsync("chat.send")) return;
+            if (_selectedModel is null)
             {
-                _scene.SetStatus(_dual.SecondModelKey is null
-                    ? "Choose Model B beside the composer before sending in dual mode."
-                    : "A dual comparison is already running.");
+                _pendingInstruction = instruction;
+                _pendingInstructionPreservesDraft = false;
+                _scene.SetStatus("Connecting to the selected local model…");
                 return;
             }
-            await RunDualComparisonAsync(instruction);
+        }
+        finally
+        {
+            _submissionStarting = false;
+        }
+
+        if (MultipleResponsesActive)
+        {
+            await RunMultipleResponsesAsync(instruction);
             return;
         }
 
+        var initialMessageCount = _messages.Count;
+        var allowQueueAdvance = true;
         _pendingInstruction = null;
         _redoMessages.Clear();
         _scene.Instruction.Text = string.Empty;
@@ -971,7 +976,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var now = DateTimeOffset.UtcNow;
         if (_messages.Count == 0)
         {
-            var title = instruction.Length > 56 ? instruction[..53] + "â€¦" : instruction;
+            var title = instruction.Length > 56 ? instruction[..53] + "…" : instruction;
             _conversation = _conversation with { Title = title, UpdatedAt = now };
         }
 
@@ -1011,6 +1016,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                                filePermission: _preferences.FilePermission,
                                commandPermission: _preferences.CommandPermission,
                                browserPermission: _preferences.BrowserPermission,
+                               explicitCapabilities: ExplicitToolCapabilitiesForCurrentChat(),
                                availableCapabilities: ActiveCapabilitiesForCurrentChat()).ConfigureAwait(false))
             {
                 if (streamEvent.Kind == ChatStreamEventKind.AssistantDelta && streamEvent.MessageId is { } deltaMessageId)
@@ -1037,10 +1043,20 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         }
         catch (OperationCanceledException)
         {
+            if (!CurrentAttemptWasAcknowledged(initialMessageCount, instruction))
+            {
+                allowQueueAdvance = false;
+                await PreserveUnacknowledgedInstructionAsync(instruction);
+            }
             await SetStatusAsync("Response stopped.");
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
         {
+            if (!CurrentAttemptWasAcknowledged(initialMessageCount, instruction))
+            {
+                allowQueueAdvance = false;
+                await PreserveUnacknowledgedInstructionAsync(instruction);
+            }
             await SetStatusAsync("Haven could not complete that response: " + exception.Message);
         }
         finally
@@ -1054,168 +1070,11 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             {
                 RefreshVisualState();
                 TrySubmitPendingInstruction();
+                if (allowQueueAdvance) TrySubmitQueuedInstruction();
+                FocusComposer();
             });
         }
     }
-
-    private async void OnDualToggleRequested(object? sender, EventArgs e)
-    {
-        if (_dual is null) return;
-        var activating = !_dual.IsActive;
-        _dual.SetActive(activating);
-        _scene.SetDualActive(activating);
-        if (!activating)
-        {
-            _scene.SetStatus("Dual-model comparison off.");
-            return;
-        }
-        if (_dual.SecondModelKey is not null)
-        {
-            _scene.SetStatus($"Dual-model comparison on — Model A {_selectedModel?.Name ?? "?"} vs {_dual.SecondModelKey}. Session only; nothing is saved.");
-            return;
-        }
-        await TryAutoSelectDualSecondModelAsync();
-    }
-
-    /// <summary>Picks a sensible default Model B from the same installed-model list the model picker uses.</summary>
-    private async Task TryAutoSelectDualSecondModelAsync()
-    {
-        var controller = _dual!;
-        try
-        {
-            var models = await _ollama.GetModelsAsync(CancellationToken.None);
-            if (_dual != controller || !controller.IsActive) return;
-            var primary = _selectedModel?.Name;
-            var candidate = models.Select(model => model.Name)
-                .FirstOrDefault(name => !string.Equals(name, primary, StringComparison.OrdinalIgnoreCase))
-                ?? models.FirstOrDefault()?.Name;
-            if (candidate is null)
-            {
-                _scene.SetStatus("Dual mode is on, but no local model is available for Model B yet.");
-                return;
-            }
-            controller.SetSecondModel(candidate);
-            _scene.SetDualSecondModel(candidate);
-            _scene.SetStatus($"Dual-model comparison on — Model A {primary ?? "primary"} vs {candidate}. Session only; nothing is saved.");
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            _scene.SetStatus("Dual mode is on, but installed models could not be listed: " + exception.Message);
-        }
-    }
-
-    private async void OnDualModelPickerRequested(object? sender, EventArgs e)
-    {
-        try
-        {
-            var models = await _ollama.GetModelsAsync(CancellationToken.None);
-            var primary = _selectedModel?.Name;
-            var keys = models.Select(model => model.Name)
-                .Where(name => !string.Equals(name, primary, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-            if (keys.Length == 0) keys = models.Select(model => model.Name).ToArray();
-            if (keys.Length == 0)
-            {
-                _scene.SetStatus("No local models are installed for a dual comparison.");
-                return;
-            }
-            _scene.ShowDualModelChoices(keys);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            _scene.SetStatus("Installed models could not be listed: " + exception.Message);
-        }
-    }
-
-    private void OnDualSecondModelChosen(object? sender, string modelKey)
-    {
-        if (_dual is null || string.IsNullOrWhiteSpace(modelKey)) return;
-        _dual.SetSecondModel(modelKey);
-        _scene.SetDualSecondModel(modelKey);
-        _scene.SetStatus($"Model B set to {modelKey}.");
-    }
-
-    /// <summary>
-    /// Runs the side-by-side dual comparison instead of the persisted chat pipeline. Deliberately
-    /// session-only and non-streaming: both sides render once from CompleteAsync results and are never
-    /// written to conversation storage; per-side failures stay visible on their own labelled block.
-    /// </summary>
-    private async Task RunDualComparisonAsync(string instruction)
-    {
-        var controller = _dual!;
-        var primaryKey = _selectedModel!.Name;
-        _pendingInstruction = null;
-        _redoMessages.Clear();
-        _scene.Instruction.Text = string.Empty;
-        _bus.Fire("Chat.Composer.Send.Click");
-        _isSending = true;
-        _sendStartTick = Environment.TickCount64;
-        _sendProgressTimer.Start();
-        _sendCancellation = new CancellationTokenSource();
-        RefreshVisualState();
-
-        var now = DateTimeOffset.UtcNow;
-        if (_messages.Count == 0)
-        {
-            var title = instruction.Length > 56 ? instruction[..53] + "â€¦" : instruction;
-            _conversation = _conversation with { Title = title, UpdatedAt = now };
-        }
-        UpsertMessage(new ChatMessage(Guid.NewGuid(), _conversation.Id, MessageRole.User, instruction, null, null, null, now));
-        RefreshMessages();
-
-        try
-        {
-            var run = await controller.RunAsync(
-                instruction,
-                primaryKey,
-                _effortOverride ?? _preferences.DefaultEffort,
-                _sendCancellation.Token);
-            if (run is null)
-            {
-                await SetStatusAsync(controller.SecondModelKey is null
-                    ? "Choose Model B beside the composer before running a dual comparison."
-                    : "A dual comparison is already running.");
-                return;
-            }
-            AppendDualSide(run.First);
-            AppendDualSide(run.Second);
-            await SetStatusAsync($"Dual comparison complete — Model A {FormatDualSideOutcome(run.First)}, Model B {FormatDualSideOutcome(run.Second)}.");
-        }
-        catch (OperationCanceledException)
-        {
-            await SetStatusAsync("Dual comparison stopped.");
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            await SetStatusAsync("Haven could not complete that dual comparison: " + exception.Message);
-        }
-        finally
-        {
-            _sendProgressTimer.Stop();
-            _sendCancellation?.Dispose();
-            _sendCancellation = null;
-            _isSending = false;
-            await RefreshSafetyStateAsync();
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                RefreshVisualState();
-                TrySubmitPendingInstruction();
-            });
-        }
-    }
-
-    private void AppendDualSide(DualModelSide side)
-    {
-        var label = (side.Label == "First" ? "Model A" : "Model B") + $" — {side.ModelKey}";
-        var content = side.Succeeded ? side.Content : $"This side failed: {side.Error}";
-        var message = new ChatMessage(Guid.NewGuid(), _conversation.Id, MessageRole.Assistant, content, label, side.ModelKey, null, DateTimeOffset.UtcNow);
-        UpsertMessage(message);
-        RefreshMessage(message);
-        ScrollToEndIfFollowing(true);
-    }
-
-    private static string FormatDualSideOutcome(DualModelSide side) =>
-        $"{side.Duration.TotalSeconds:0.#}s{(side.Succeeded ? string.Empty : " (failed)")}";
 
     private void ApplyStreamEvent(ChatStreamEvent streamEvent)
     {
@@ -1385,10 +1244,21 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             message.Id,
             message.Role,
             display ?? string.Empty,
-            message.AgentName ?? "Haven",
+            ReadProducingModelLabel(message),
             _streamingMessages.Contains(message.Id),
             thinking,
             ReadToolActivities(message));
+    }
+
+    private static string ReadProducingModelLabel(ChatMessage message)
+    {
+        if (message.Metadata.TryGetValue("modelNickname", out var nicknameElement)
+            && nicknameElement.ValueKind == JsonValueKind.String
+            && nicknameElement.GetString() is { Length: > 0 } nickname)
+            return nickname;
+        if (!string.IsNullOrWhiteSpace(message.ModelName)) return message.ModelName;
+        if (!string.IsNullOrWhiteSpace(message.AgentName)) return message.AgentName;
+        return "Haven";
     }
 
     private void RefreshGeneratedContent(ChatMessage message)
@@ -1786,6 +1656,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _persistedAttachments.Clear();
         _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
+        _multipleResponseModels.Clear();
         _messages.Clear();
         _redoMessages.Clear();
         _safetyLocked = false;
@@ -2027,8 +1898,10 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _sendCancellation?.Dispose();
         _sendProgressTimer.Stop();
         _scene.StopRequested -= OnStopRequested;
-        _scene.Instruction.Invalidated -= OnComposerEditCompleted;
+        _scene.Instruction.EditCompleted -= OnComposerEditCompleted;
+        _scene.ManageChatRequested -= OnManageChatRequested;
         _scene.AttachmentRemoveRequested -= OnAttachmentRemoveRequested;
+        UnwireMultipleResponses();
         Scene.InputSubmitted -= OnInputSubmitted;
         Scene.PointerPressedOutside -= _scene.HideAddMenu;
         ClearGeneratedSurfaces();

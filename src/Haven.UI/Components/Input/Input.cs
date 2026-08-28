@@ -18,6 +18,7 @@ public sealed class Input : HavenElement
     public static readonly HavenProperty<bool> RevealSecretProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.RevealSecret", false));
     public static readonly HavenProperty<bool> AllowSecretClipboardProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.AllowSecretClipboard", false));
     public static readonly HavenProperty<int> CaretIndexProperty = HavenPropertyRegistry.Register(new HavenProperty<int>("Input.CaretIndex", 0));
+    public static readonly HavenProperty<bool> CenterSingleLineContentProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.CenterSingleLineContent", false));
 
     public Input()
     {
@@ -32,6 +33,8 @@ public sealed class Input : HavenElement
     }
 
     public event EventHandler? TextChanged;
+    /// <summary>Raised after a user editing operation has updated both text and final caret/selection state.</summary>
+    public event EventHandler? EditCompleted;
 
     public string Text
     {
@@ -59,6 +62,8 @@ public sealed class Input : HavenElement
 
     public bool Multiline { get => GetValue(MultilineProperty); set => SetValue(MultilineProperty, value); }
     public bool SubmitOnEnter { get => GetValue(SubmitOnEnterProperty); set => SetValue(SubmitOnEnterProperty, value); }
+    /// <summary>Opt-in compact-editor centring for one-line content inside a multiline input.</summary>
+    public bool CenterSingleLineContent { get => GetValue(CenterSingleLineContentProperty); set => SetValue(CenterSingleLineContentProperty, value); }
     public bool IsSecret
     {
         get => GetValue(IsSecretProperty);
@@ -130,6 +135,7 @@ public sealed class Input : HavenElement
             ? Text.Remove(start, end - start).Insert(start, insertion)
             : Text.Insert(CaretIndex, insertion);
         CollapseSelectionAt(start + insertion.Length);
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -139,6 +145,7 @@ public sealed class Input : HavenElement
         {
             PushUndoState();
             DeleteSelectionCore();
+            EditCompleted?.Invoke(this, EventArgs.Empty);
             return true;
         }
         var index = NormalizeCaret(Text, CaretIndex);
@@ -147,6 +154,7 @@ public sealed class Input : HavenElement
         var start = PreviousBoundary(Text, index);
         Text = Text.Remove(start, index - start);
         CollapseSelectionAt(start);
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -156,6 +164,7 @@ public sealed class Input : HavenElement
         {
             PushUndoState();
             DeleteSelectionCore();
+            EditCompleted?.Invoke(this, EventArgs.Empty);
             return true;
         }
         var index = NormalizeCaret(Text, CaretIndex);
@@ -164,6 +173,7 @@ public sealed class Input : HavenElement
         var end = NextBoundary(Text, index);
         Text = Text.Remove(index, end - index);
         CollapseSelectionAt(index);
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -172,6 +182,7 @@ public sealed class Input : HavenElement
         if (!HasSelection) return false;
         PushUndoState();
         DeleteSelectionCore();
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -182,6 +193,7 @@ public sealed class Input : HavenElement
         var previous = _undo.Pop();
         _redo.Push(current);
         RestoreState(previous);
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -192,6 +204,7 @@ public sealed class Input : HavenElement
         var next = _redo.Pop();
         _undo.Push(current);
         RestoreState(next);
+        EditCompleted?.Invoke(this, EventArgs.Empty);
         return true;
     }
 

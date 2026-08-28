@@ -28,6 +28,7 @@ public sealed partial class NewChatPage
             new ChatAttachmentChip($"capability:{item.Id:D}", item.Name, "plugin")));
         chips.AddRange(_taskAttachments.Apps.Select(item =>
             new ChatAttachmentChip($"app:{item.Id:D}", item.Name, string.IsNullOrWhiteSpace(item.IconKey) ? "all-modes" : item.IconKey)));
+        if (BuildMultipleResponseChip() is { } multipleResponses) chips.Add(multipleResponses);
         return chips;
     }
 
@@ -74,6 +75,8 @@ public sealed partial class NewChatPage
             _activeAgent = null;
             changed = true;
         }
+        else if (id.Equals("multiple-responses", StringComparison.Ordinal))
+            changed = ClearMultipleResponses();
 
         if (!changed) return;
         RefreshAttachmentStatus();
@@ -200,5 +203,53 @@ public sealed partial class NewChatPage
             ".mp3" or ".wav" or ".m4a" or ".aac" or ".flac" or ".ogg" => "mic",
             _ => "file"
         };
+    }
+
+    private IReadOnlyCollection<ToolCapability> ExplicitToolCapabilitiesForCurrentChat()
+    {
+        IEnumerable<CapabilityDefinition> attached = EffectiveChatActionMode switch
+        {
+            ChatActionMode.JustChat => [],
+            ChatActionMode.AllowBasicActions => _taskAttachments.Capabilities.Where(item =>
+                item.RiskClass is CapabilityRiskClass.ReadOnly or CapabilityRiskClass.Low),
+            _ => _taskAttachments.Capabilities
+        };
+
+        var result = new HashSet<ToolCapability>();
+        foreach (var capability in attached)
+        {
+            if (ExternalConnectionNaming.IsConnectionCapability(capability.Key))
+            {
+                result.Add(ToolCapability.Tools);
+                continue;
+            }
+
+            switch (capability.Key)
+            {
+                case "web-search":
+                    result.Add(ToolCapability.WebSearch);
+                    result.Add(ToolCapability.Browser);
+                    break;
+                case "browser-use":
+                    result.Add(ToolCapability.Browser);
+                    break;
+                case "computer-device-use":
+                case "open-control-app":
+                    result.Add(ToolCapability.ComputerUse);
+                    break;
+                case "create-automation":
+                case "run-task":
+                case "edit-task":
+                case "run-command":
+                case "run-script":
+                case "powershell":
+                case "read-file":
+                case "write-file":
+                case "run-tests":
+                    result.Add(ToolCapability.Tools);
+                    break;
+            }
+        }
+        return result;
     }
 }

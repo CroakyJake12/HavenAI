@@ -16,6 +16,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private readonly List<(HavenButton Button, AddMenu.AddMenuAction Action, object Item)> _catalogRows = [];
     private readonly bool _composerOwnsSearch;
     private readonly bool _showThreadSettings;
+    private readonly bool _showMultipleResponses;
     private IReadOnlyList<AgentDefinition> _agents = [];
     private IReadOnlyList<CapabilityDefinition> _capabilities = [];
     private IReadOnlyList<PromptDefinition> _instructions = [];
@@ -25,15 +26,22 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private string _externalQuery = string.Empty;
     private bool _searchAll;
     private string _currentAgentName = "No Agent (Default)";
+    private IReadOnlyList<string> _multipleResponseModelKeys = [];
+    private HashSet<string> _selectedMultipleResponseModels = new(StringComparer.OrdinalIgnoreCase);
     private ChatActionMode _currentActionMode = ChatActionMode.AllowBasicActions;
     private GenerativeUiResponseMode _currentVisualMode = GenerativeUiResponseMode.Auto;
     private bool _disposed;
 
-    public ChatAddMenuSurface(Prefab prefab, bool composerOwnsSearch = false, bool showThreadSettings = true)
+    public ChatAddMenuSurface(
+        Prefab prefab,
+        bool composerOwnsSearch = false,
+        bool showThreadSettings = true,
+        bool showMultipleResponses = false)
     {
         Prefab = prefab ?? throw new ArgumentNullException(nameof(prefab));
         _composerOwnsSearch = composerOwnsSearch;
         _showThreadSettings = showThreadSettings;
+        _showMultipleResponses = showMultipleResponses;
         Overlay = prefab.GetComponent<Container>("AddOverlay");
         DismissButton = prefab.GetComponent<HavenButton>("Dismiss");
         MainMenu = prefab.GetComponent<Container>("MainMenu");
@@ -50,6 +58,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         AppsButton = prefab.GetComponent<HavenButton>("Apps");
         AllowActionsButton = prefab.GetComponent<HavenButton>("AllowActions");
         VisualResponsesButton = prefab.GetComponent<HavenButton>("VisualResponses");
+        MultipleResponsesButton = prefab.GetComponent<HavenButton>("MultipleResponses");
         CurrentResponseState = prefab.GetComponent<HavenText>("CurrentResponseState");
 
         if (_composerOwnsSearch)
@@ -60,7 +69,20 @@ internal sealed class ChatAddMenuSurface : IDisposable
             InstructionsButton.Content = "Skills";
             CapabilitiesButton.Content = "Capabilities / Plugins";
             AttachFilesButton.Content = "Files";
+
+            var tools = prefab.GetComponent<Container>("Tools");
+            foreach (var button in new[] { AgentsButton, InstructionsButton, CapabilitiesButton, AppsButton })
+                tools.Remove(button);
+            MainMenu.Remove(AttachFilesButton);
+            tools.Add(AttachFilesButton);
+            tools.Add(AppsButton);
+            tools.Add(CapabilitiesButton);
+            tools.Add(InstructionsButton);
+            tools.Add(AgentsButton);
         }
+        MultipleResponsesButton.SetValue(
+            HavenProperties.Visibility,
+            _showMultipleResponses ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         if (!_showThreadSettings)
         {
             OptionsHeading.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
@@ -77,8 +99,8 @@ internal sealed class ChatAddMenuSurface : IDisposable
         AppsButton.Invoked += OnAppsInvoked;
         AllowActionsButton.Invoked += OnAllowActionsInvoked;
         VisualResponsesButton.Invoked += OnVisualResponsesInvoked;
-        if (!_composerOwnsSearch)
-            CatalogSearch.Invalidated += OnCatalogSearchInvalidated;
+        MultipleResponsesButton.Invoked += OnMultipleResponsesInvoked;
+        if (!_composerOwnsSearch) CatalogSearch.Invalidated += OnCatalogSearchInvalidated;
         Hide();
     }
 
@@ -99,10 +121,33 @@ internal sealed class ChatAddMenuSurface : IDisposable
     public HavenButton AppsButton { get; }
     public HavenButton AllowActionsButton { get; }
     public HavenButton VisualResponsesButton { get; }
+    public HavenButton MultipleResponsesButton { get; }
     public HavenText CurrentResponseState { get; }
 
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
+    public event EventHandler? MultipleResponsesRequested;
+    public event EventHandler<string>? MultipleResponseModelToggled;
+
+    public void ShowMultipleResponseModels(
+        IReadOnlyList<string> modelKeys,
+        IReadOnlyCollection<string> selectedModelKeys)
+    {
+        ArgumentNullException.ThrowIfNull(modelKeys);
+        ArgumentNullException.ThrowIfNull(selectedModelKeys);
+        _catalogAction = null;
+        _searchAll = false;
+        _externalQuery = string.Empty;
+        _multipleResponseModelKeys = modelKeys
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _selectedMultipleResponseModels = new HashSet<string>(selectedModelKeys, StringComparer.OrdinalIgnoreCase);
+        CatalogSearch.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
+        Overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
+        RebuildMultipleResponseModels();
+    }
 
     public void SetCatalogue(
         IReadOnlyList<AgentDefinition> agents,
@@ -152,6 +197,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         Overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
     }
 
+    /// <summary>Shows the Attach catalogue filtered by the inline Chat composer @ query.</summary>
     public void ShowMentionSearch(string? query)
     {
         if (!_composerOwnsSearch)
@@ -273,6 +319,25 @@ internal sealed class ChatAddMenuSurface : IDisposable
         CatalogResults.Add(heading);
     }
 
+    private void RebuildMultipleResponseModels()
+    {
+        foreach (var child in CatalogResults.Children.ToArray()) CatalogResults.Remove(child);
+        _catalogRows.Clear();
+        AddCatalogHeading($"Select 2 or more models · {_selectedMultipleResponseModels.Count} selected");
+        foreach (var modelKey in _multipleResponseModelKeys)
+        {
+            var selected = _selectedMultipleResponseModels.Contains(modelKey);
+            var button = MenuButton((selected ? "✓ " : string.Empty) + modelKey, 284);
+            button.Accessibility.AccessibleName = selected
+                ? $"{modelKey} selected for Multiple Responses. Remove"
+                : $"Add {modelKey} to Multiple Responses";
+            button.Invoked += (_, _) => MultipleResponseModelToggled?.Invoke(this, modelKey);
+            CatalogResults.Add(button);
+        }
+        if (_multipleResponseModelKeys.Count == 0)
+            AddCatalogHeading("No installed models are available.");
+    }
+
     private void RebuildMentionSearch(string query)
     {
         var candidates = new List<(AddMenu.AddMenuAction Action, object Item, string Name, string Description, int Score)>();
@@ -294,7 +359,20 @@ internal sealed class ChatAddMenuSurface : IDisposable
         AddCandidates(AddMenu.AddMenuAction.Instruction, _instructions, item => item.Name, item => item.Description);
         AddCandidates(AddMenu.AddMenuAction.App, _apps, item => item.Name, item => item.Description);
 
-        if (SearchScore("Files", "Attach files from this device", query) >= 0)
+        if (_showMultipleResponses && SearchScore("Multiple Responses", "Run the prompt with two or more models", query) >= 0)
+        {
+            var multipleResponses = MenuButton("Multiple Responses", 284);
+            multipleResponses.Accessibility.Description = "Run the prompt with two or more models";
+            multipleResponses.Invoked += (_, _) =>
+            {
+                Hide();
+                MultipleResponsesRequested?.Invoke(this, EventArgs.Empty);
+            };
+            CatalogResults.Add(multipleResponses);
+        }
+
+        var fileScore = SearchScore("Files", "Attach files from this device", query);
+        if (fileScore >= 0)
         {
             var files = MenuButton("Files", 284);
             files.Accessibility.Description = "Attach files from this device";
@@ -421,6 +499,8 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private void OnAppsInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.App);
     private void OnAllowActionsInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.AllowActions);
     private void OnVisualResponsesInvoked(object? sender, EventArgs e) => OpenCatalogue(AddMenu.AddMenuAction.VisualResponses);
+    private void OnMultipleResponsesInvoked(object? sender, EventArgs e) =>
+        MultipleResponsesRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnCatalogSearchInvalidated(object? sender, EventArgs e)
     {
@@ -442,8 +522,8 @@ internal sealed class ChatAddMenuSurface : IDisposable
         AppsButton.Invoked -= OnAppsInvoked;
         AllowActionsButton.Invoked -= OnAllowActionsInvoked;
         VisualResponsesButton.Invoked -= OnVisualResponsesInvoked;
-        if (!_composerOwnsSearch)
-            CatalogSearch.Invalidated -= OnCatalogSearchInvalidated;
+        MultipleResponsesButton.Invoked -= OnMultipleResponsesInvoked;
+        CatalogSearch.Invalidated -= OnCatalogSearchInvalidated;
         _catalogRows.Clear();
     }
 }

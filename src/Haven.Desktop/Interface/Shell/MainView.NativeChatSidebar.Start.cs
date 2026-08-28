@@ -23,11 +23,7 @@ public sealed partial class MainView
 
         await _newChatPage.StartFreshConversationAsync(mode, chatGroupId, lessonId);
         if (_nativeChatSidebar?.CurrentSpaceId is { } spaceId)
-        {
-            await _conversations.UpsertConversationAsync(
-                _newChatPage.CurrentConversation with { SpaceId = spaceId },
-                CancellationToken.None);
-        }
+            await _newChatPage.AssignSpaceAsync(spaceId);
         _nativeChatSidebar?.SetMode(mode);
         _nativeChatSidebar?.SetActiveConversation(_newChatPage.CurrentConversation.Id, chatGroupId);
         await RefreshNativeChatSidebarAsync();

@@ -1,4 +1,5 @@
-﻿using Haven.Core;
+using Avalonia.Threading;
+using Haven.Core;
 using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Prefabs;
 using Haven.Desktop.Services;
@@ -53,6 +54,7 @@ internal sealed partial class ChatHavenScene : IDisposable
     private readonly ChatAddMenuSurface _addMenu;
     private PopupMenu? _activeMessagePopup;
     private bool _isSending;
+    private bool _modelAvailable;
     private bool _safetyLocked;
     private bool _isContextExpanded;
     private bool _contextDismissed;
@@ -76,11 +78,10 @@ internal sealed partial class ChatHavenScene : IDisposable
         Messages = (DynamicUIRuntime)Root.DescendantsAndSelf().Single(element => element.Name == "Messages");
         EmptyState = Root.DescendantsAndSelf().Single(element => element.Name == "EmptyState");
         Status = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "Status");
-        AttachmentStatus = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "AttachmentStatus");
-        ManageAttachments = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ManageAttachments");
         TaskActions = (Container)Root.DescendantsAndSelf().Single(element => element.Name == "TaskActions");
         NewTask = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "NewTask");
         TaskHistory = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "TaskHistory");
+        ManageChat = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ManageChat");
         ResolveProblems = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ResolveProblems");
         ContextCard = Root.DescendantsAndSelf().OfType<Container>().Single(element => element.Name == "ContextCard");
         ContextToggle = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ContextToggle");
@@ -99,18 +100,22 @@ internal sealed partial class ChatHavenScene : IDisposable
         AddMenuPrefab.SetValue(HavenProperties.ZIndex, 100);
         AddMenuPrefab.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
         Root.Add(AddMenuPrefab);
-        _addMenu = new ChatAddMenuSurface(AddMenuPrefab, composerOwnsSearch: true, showThreadSettings: false);
+        _addMenu = new ChatAddMenuSurface(AddMenuPrefab, composerOwnsSearch: true, showThreadSettings: false, showMultipleResponses: true);
 
         AddButton.Invoked += OnAddInvoked;
         SendButton.Invoked += OnSendInvoked;
+        Instruction.TextChanged += OnInstructionTextChanged;
+        ManageChat.Invoked += OnManageChatInvoked;
         ResolveProblems.Invoked += OnResolveInvoked;
         ContextToggle.Invoked += OnContextToggleInvoked;
         ContextClose.Invoked += OnContextCloseInvoked;
-        ManageAttachments.Invoked += (_, _) => ManageAttachmentsRequested?.Invoke(this, EventArgs.Empty);
         NewTask.Invoked += (_, _) => NewTaskRequested?.Invoke(this, EventArgs.Empty);
         TaskHistory.Invoked += (_, _) => TaskHistoryRequested?.Invoke(this, EventArgs.Empty);
         _addMenu.AddActionSelected += OnSharedAddActionSelected;
         _addMenu.CatalogItemSelected += OnSharedCatalogItemSelected;
+        _addMenu.MultipleResponsesRequested += OnSharedMultipleResponsesRequested;
+        _addMenu.MultipleResponseModelToggled += OnSharedMultipleResponseModelToggled;
+        UpdateComposerMetrics();
         SetHasMessages(false);
         HideAddMenu();
     }
@@ -128,11 +133,10 @@ internal sealed partial class ChatHavenScene : IDisposable
     public DynamicUIRuntime Messages { get; }
     public HavenElement EmptyState { get; }
     public HavenText Status { get; }
-    public HavenText AttachmentStatus { get; }
-    public HavenButton ManageAttachments { get; }
     public Container TaskActions { get; }
     public HavenButton NewTask { get; }
     public HavenButton TaskHistory { get; }
+    public HavenButton ManageChat { get; }
     public HavenButton ResolveProblems { get; }
     public Container ContextCard { get; }
     public HavenButton ContextToggle { get; }
@@ -149,13 +153,14 @@ internal sealed partial class ChatHavenScene : IDisposable
     public event EventHandler? SendRequested;
     public event EventHandler? StopRequested;
     public event EventHandler? ResolveProblemsRequested;
-    public event EventHandler? ManageAttachmentsRequested;
     public event EventHandler? NewTaskRequested;
     public event EventHandler? TaskHistoryRequested;
     public event EventHandler? ContextDismissRequested;
     public event EventHandler<Guid>? ContextRemoveRequested;
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
+    public event EventHandler? MultipleResponsesRequested;
+    public event EventHandler<string>? MultipleResponseModelToggled;
     public event EventHandler<ChatMessageActionRequest>? MessageActionRequested;
     public event EventHandler<ChatMarkdownCodeActionRequest>? MarkdownCodeActionRequested;
 
@@ -167,35 +172,37 @@ internal sealed partial class ChatHavenScene : IDisposable
     public void SetSending(bool sending, bool modelAvailable)
     {
         _isSending = sending;
+        _modelAvailable = modelAvailable;
         // Keep the composer editable while a response is streaming so the user can prepare
-        // their next message without interrupting the active response.
+        // and queue their next message without interrupting the active response.
         Instruction.SetValue(HavenProperties.Enabled, !_safetyLocked);
-        SendButton.SetValue(HavenProperties.Enabled, !_safetyLocked && (sending || modelAvailable));
-        SendButton.Accessibility.AccessibleName = sending ? "Stop response" : "Send message";
-        SendIcon.Key = sending ? "close" : "arrow-up";
+        RefreshSendIntent();
     }
 
     public void SetSafetyLocked(bool locked)
     {
         _safetyLocked = locked;
         Instruction.SetValue(HavenProperties.Enabled, !locked);
-        SendButton.SetValue(HavenProperties.Enabled, !locked && (_isSending || !string.IsNullOrWhiteSpace(Instruction.Text)));
         AddButton.SetValue(HavenProperties.Enabled, !locked);
+        RefreshSendIntent();
         if (locked) HideAddMenu();
+    }
+
+    private void RefreshSendIntent()
+    {
+        var hasDraft = !string.IsNullOrWhiteSpace(Instruction.Text);
+        var stopsCurrentResponse = _isSending && !hasDraft;
+        SendButton.SetValue(HavenProperties.Enabled, !_safetyLocked && (_isSending || _modelAvailable));
+        SendButton.Accessibility.AccessibleName = stopsCurrentResponse
+            ? "Stop response"
+            : _isSending ? "Queue next message" : "Send message";
+        SendIcon.Key = stopsCurrentResponse ? "close" : "arrow-up";
     }
 
     public void SetStatus(string? value)
     {
         Status.Content = value ?? string.Empty;
         Status.SetValue(HavenProperties.Visibility, string.IsNullOrWhiteSpace(value) ? HavenVisibility.Collapsed : HavenVisibility.Visible);
-    }
-
-    public void SetAttachmentStatus(string? value)
-    {
-        var hasAttachments = !string.IsNullOrWhiteSpace(value);
-        AttachmentStatus.Content = value ?? string.Empty;
-        AttachmentStatus.SetValue(HavenProperties.Visibility, hasAttachments ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        ManageAttachments.SetValue(HavenProperties.Visibility, hasAttachments ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
 
     public void SetTaskMode(bool enabled) =>
@@ -661,10 +668,50 @@ internal sealed partial class ChatHavenScene : IDisposable
         return button;
     }
 
+    private void OnInstructionTextChanged(object? sender, EventArgs e)
+    {
+        UpdateComposerMetrics();
+        RefreshSendIntent();
+    }
+
+    private void UpdateComposerMetrics()
+    {
+        const double compactHeight = 44d;
+        const double lineGrowth = 20d;
+        const double maxViewportHeight = 124d;
+        var fontSize = Math.Max(10d, Instruction.GetValue(HavenProperties.FontSize));
+        var contentWidth = InstructionViewport.Bounds.Width > 48d
+            ? Math.Max(160d, InstructionViewport.Bounds.Width - 24d)
+            : 560d;
+        var charactersPerLine = Math.Max(20, (int)Math.Floor(contentWidth / Math.Max(6d, fontSize * .55d)));
+        var visualLines = 0;
+        foreach (var physicalLine in Instruction.Text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+            visualLines += Math.Max(1, (int)Math.Ceiling(Math.Max(1, physicalLine.Length) / (double)charactersPerLine));
+        visualLines = Math.Max(1, visualLines);
+
+        var contentHeight = compactHeight + (visualLines - 1) * lineGrowth;
+        var viewportHeight = Math.Min(maxViewportHeight, contentHeight);
+        var radiusProgress = Math.Clamp((viewportHeight - compactHeight) / (maxViewportHeight - compactHeight), 0d, 1d);
+        var outerRadius = 28d - 10d * radiusProgress;
+        var editorRadius = 22d - 8d * radiusProgress;
+
+        ComposerRow.Rows = $"{viewportHeight:0.###}px";
+        ChatboxRoot.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(outerRadius)));
+        InstructionViewport.SetValue(HavenProperties.Height, HavenLength.Px(viewportHeight));
+        InstructionViewport.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(editorRadius)));
+        Instruction.SetValue(HavenProperties.Height, HavenLength.Px(Math.Max(40d, contentHeight - 4d)));
+        Instruction.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(editorRadius)));
+
+        if (contentHeight <= maxViewportHeight || Instruction.CaretIndex < Math.Max(0, Instruction.Text.Length - 1)) return;
+        Dispatcher.UIThread.Post(
+            () => InstructionViewport.ScrollY = InstructionViewport.MaxScrollY,
+            DispatcherPriority.Background);
+    }
+
     private void OnAddInvoked(object? sender, EventArgs e) => ShowAddMenu();
     private void OnSendInvoked(object? sender, EventArgs e)
     {
-        if (_isSending)
+        if (_isSending && string.IsNullOrWhiteSpace(Instruction.Text))
         {
             StopRequested?.Invoke(this, EventArgs.Empty);
             return;
@@ -681,11 +728,22 @@ internal sealed partial class ChatHavenScene : IDisposable
 
     public void FilterCatalogue(string query) => _addMenu.FilterCatalogue(query);
 
+    public void ShowMultipleResponseModels(
+        IReadOnlyList<string> modelKeys,
+        IReadOnlyCollection<string> selectedModelKeys) =>
+        _addMenu.ShowMultipleResponseModels(modelKeys, selectedModelKeys);
+
     private void OnSharedAddActionSelected(object? sender, AddMenu.AddMenuAction action) =>
         AddActionSelected?.Invoke(this, action);
 
     private void OnSharedCatalogItemSelected(object? sender, AddMenuSelection selection) =>
         CatalogItemSelected?.Invoke(this, selection);
+
+    private void OnSharedMultipleResponsesRequested(object? sender, EventArgs e) =>
+        MultipleResponsesRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnSharedMultipleResponseModelToggled(object? sender, string modelKey) =>
+        MultipleResponseModelToggled?.Invoke(this, modelKey);
 
     private Page BuildRoot()
     {
@@ -712,11 +770,13 @@ internal sealed partial class ChatHavenScene : IDisposable
                     <Button Name="NewTask" Variant="Ghost" Content="New task" MinHeight="34px" />
                     <Button Name="TaskHistory" Variant="Ghost" Content="Task history" MinHeight="34px" />
                   </Container>
-                  <Button Name="ResolveProblems" Variant="Ghost" Content="Resolve problems" MinHeight="34px" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Container Name="ThreadControls" Layout="Horizontal" HorizontalAlignment="End" Gap="6px">
+                    <Button Name="ManageChat" Variant="Ghost" Content="Manage Chat" MinHeight="32px" />
+                    <Button Name="ResolveProblems" Variant="Tertiary" IconKey="warning" Content="Resolve Issues" MinHeight="32px" Foreground="Warning" BorderColor="Warning" BorderWidth="1px" Visibility="Collapsed" />
+                  </Container>
                   <Text Name="Status" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
-                  <Text Name="AttachmentStatus" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
-                  <Button Name="ManageAttachments" Variant="Ghost" Content="Manage attachments" MinHeight="32px" HorizontalAlignment="Center" Visibility="Collapsed" />
                   <Prefab InstID="Main-Chatbox" ID="Chatbox" />
+                  <Text Name="Disclaimer" Content="AI can make mistakes. Double-check important information and tasks." FontSize="10" Foreground="TextMuted" HorizontalAlignment="Center" />
                 </Container>
               </Container>
             </Page>
@@ -734,11 +794,15 @@ internal sealed partial class ChatHavenScene : IDisposable
         _generatedContent.Clear();
         AddButton.Invoked -= OnAddInvoked;
         SendButton.Invoked -= OnSendInvoked;
+        Instruction.TextChanged -= OnInstructionTextChanged;
+        ManageChat.Invoked -= OnManageChatInvoked;
         ResolveProblems.Invoked -= OnResolveInvoked;
         ContextToggle.Invoked -= OnContextToggleInvoked;
         ContextClose.Invoked -= OnContextCloseInvoked;
         _addMenu.AddActionSelected -= OnSharedAddActionSelected;
         _addMenu.CatalogItemSelected -= OnSharedCatalogItemSelected;
+        _addMenu.MultipleResponsesRequested -= OnSharedMultipleResponsesRequested;
+        _addMenu.MultipleResponseModelToggled -= OnSharedMultipleResponseModelToggled;
         _addMenu.Dispose();
     }
 }

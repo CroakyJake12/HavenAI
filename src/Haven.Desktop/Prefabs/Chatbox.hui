@@ -3,8 +3,8 @@
   <Container Name="ComposerRow" Layout="Grid" Columns="44px 1fr 44px" Rows="44px" Width="100%" Gap="8px">
     <Button Name="AddMenu" Variant="Icon" Column="0" Width="44px" Height="44px" MinHeight="44px" Radius="22px" />
     <Icon Name="AddMenuIcon" Key="plus" Column="0" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />
-    <Container Name="InstructionViewport" Column="1" Layout="Overlay" Height="44px" MaxHeight="124px" Overflow="Scroll" Clip="true" Radius="22px">
-      <Input Name="Instruction" Multiline="true" SubmitOnEnter="true" Width="100%" MinHeight="44px" Height="44px" Background="Transparent" Padding="0px 12px" Radius="22px" Placeholder="Ask Haven anything" />
+    <Container Name="InstructionViewport" Column="1" Layout="Overlay" Height="44px" MaxHeight="124px" Overflow="Scroll" Clip="true" Radius="22px" Padding="2px">
+      <Input Name="Instruction" Multiline="true" SubmitOnEnter="true" Width="100%" MinHeight="40px" Height="40px" Background="Transparent" Padding="0px 12px" Radius="22px" Placeholder="Ask Haven anything" />
     </Container>
     <Button Name="Send" Variant="Icon" Column="2" Width="44px" Height="44px" MinHeight="44px" Radius="22px" />
     <Icon Name="SendIcon" Key="arrow-up" Column="2" Width="20px" Height="20px" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="TextPrimary" PointerEvents="None" ZIndex="1" />

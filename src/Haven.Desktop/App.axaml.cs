@@ -83,7 +83,7 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<TerminalCommandActivityHub>();
         collection.AddSingleton<WorkspaceToolRuntime>();
         collection.AddSingleton<ComputerToolRuntime>();
-        collection.AddSingleton(provider => new DualModelService(provider.GetRequiredService<IOllamaClient>(), provider.GetRequiredService<IExecutionEventSink>()));
+        collection.AddSingleton(provider => new MultipleResponseService(provider.GetRequiredService<IOllamaClient>(), provider.GetRequiredService<IExecutionEventSink>()));
         collection.AddSingleton(provider => new JudgeService(new TrainingJudgeAdapter(provider.GetRequiredService<IOllamaClient>()), provider.GetRequiredService<IExecutionEventSink>()));
         collection.AddSingleton<ChatSessionService>(provider => new ChatSessionService(
             provider.GetRequiredService<IConversationRepository>(),

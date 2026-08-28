@@ -279,10 +279,12 @@ public sealed class ChatSessionService(
         etaModel = turnModel;
 
         string? personalityDirective = null;
+        string? modelNickname = null;
         var memoryReferences = PersonalityLevel.Moderate;
         if (personalities is not null)
         {
             var effectivePersonality = await personalities.ResolveEffectiveAsync(turnModel.Name, cancellationToken).ConfigureAwait(false);
+            modelNickname = await personalities.ResolveNicknameAsync(turnModel.Name, cancellationToken).ConfigureAwait(false);
             personalityDirective = ModelPersonalityPrompt.Describe(effectivePersonality);
             memoryReferences = effectivePersonality.MemoryReferences;
         }
@@ -797,7 +799,10 @@ public sealed class ChatSessionService(
         }
 
         await safety.EnsureMayActAsync(conversation.Id, "chat.complete", cancellationToken).ConfigureAwait(false);
-        var assistantMetadata = toolActivities.Count == 0 ? null : JsonSerializer.Serialize(new { toolActivities });
+        var metadata = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (toolActivities.Count > 0) metadata["toolActivities"] = toolActivities;
+        if (!string.IsNullOrWhiteSpace(modelNickname)) metadata["modelNickname"] = modelNickname;
+        var assistantMetadata = metadata.Count == 0 ? null : JsonSerializer.Serialize(metadata);
         var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, assistantMetadata, DateTimeOffset.UtcNow);
         if (!conversation.IsTemporary)
             await conversations.AddMessageAsync(assistant, cancellationToken).ConfigureAwait(false);
