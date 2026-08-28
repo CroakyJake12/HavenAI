@@ -503,32 +503,30 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private static Page BuildRoot()
     {
         const string markup = """
-            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
-              <Container Name="HeaderRow" Row="0" Layout="Grid" Columns="1fr 34px" Width="100%" Gap="6px">
+            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto" Gap="6px" Padding="10px" Background="Surface">
+              <Container Name="HeaderRow" Row="0" Layout="Grid" Columns="1fr 32px" Width="100%" Gap="5px">
                 <Button Name="SpacePicker" Variant="Secondary" Content="Chat" Column="0" Height="38px" MinHeight="38px" />
-                <Button Name="SearchToggle" Variant="Icon" IconKey="search" Content="" Column="1" Width="34px" Height="34px" MinHeight="34px" />
+                <Button Name="SearchToggle" Variant="Icon" IconKey="search" Content="" Column="1" Width="32px" Height="32px" MinHeight="32px" />
               </Container>
               <Input Name="Search" Row="1" Width="100%" Height="34px" MinHeight="34px" Placeholder="Search chats, groups and files" Visibility="Collapsed" />
-              <Container Name="ScrollHost" Row="2" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="6px">
-                <Container Name="GroupsHeader" Layout="Grid" Columns="1fr 32px" Width="100%" Gap="4px">
-                  <Text Name="GroupsHeading" Content="Chat Groups" Level="H3" Column="0" VerticalAlignment="Center" />
-                  <Button Name="NewGroup" Variant="Icon" IconKey="plus" Content="" Column="1" Width="32px" Height="32px" MinHeight="32px" />
-                </Container>
-                <DynamicUIRuntime Name="GroupRows" Width="100%" />
+              <Container Name="ScrollHost" Row="2" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="4px">
+                <Button Name="NewChat" Variant="Navigation" IconKey="plus" Content="New Chat" Width="100%" MinHeight="36px" />
                 <Text Name="FilesHeading" Content="File Library" Level="H3" />
                 <DynamicUIRuntime Name="FileRows" Width="100%" />
                 <Text Name="FilesEmpty" Content="Files attached to chats appear here." FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
+                <Container Name="GroupsHeader" Layout="Grid" Columns="1fr 30px" Width="100%" Gap="4px">
+                  <Text Name="GroupsHeading" Content="Chat Groups" Level="H3" Column="0" VerticalAlignment="Center" />
+                  <Button Name="NewGroup" Variant="Icon" IconKey="plus" Content="" Column="1" Width="30px" Height="30px" MinHeight="30px" />
+                </Container>
+                <DynamicUIRuntime Name="GroupRows" Width="100%" />
                 <Text Name="PinnedHeading" Content="Pinned" Level="H3" Visibility="Collapsed" />
                 <DynamicUIRuntime Name="PinnedRows" Width="100%" />
-                <Text Name="UnreadHeading" Content="Unread Notifications" Level="H3" Visibility="Collapsed" />
+                <Text Name="UnreadHeading" Content="Unread" Level="H3" Visibility="Collapsed" />
                 <DynamicUIRuntime Name="UnreadRows" Width="100%" />
                 <Text Name="ChatsHeading" Content="Chats" Level="H3" />
                 <DynamicUIRuntime Name="ChatRows" Width="100%" />
               </Container>
-              <Container Name="Footer" Row="3" Layout="Grid" Columns="1fr" Width="100%">
-                <Button Name="NewChat" Variant="Primary" IconKey="plus" Content="New Chat" Column="0" Width="100%" MinHeight="40px" />
-              </Container>
-              <Text Name="Status" Row="4" Content="" FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
+              <Text Name="Status" Row="3" Content="" FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
             </Page>
             """;
         return (Page)new HavenMarkupParser().Parse(markup, "ChatSidebar.hui");

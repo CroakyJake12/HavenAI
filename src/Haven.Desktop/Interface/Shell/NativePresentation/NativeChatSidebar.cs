@@ -134,6 +134,14 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _scene.ShowChoices("Spaces", choices);
     }
 
+    internal Task SelectSpaceFromShellAsync(Guid? spaceId) => SelectSpaceAsync(spaceId);
+
+    internal async Task ReloadSpaceScopeAsync()
+    {
+        await LoadSpaceScopeAsync().ConfigureAwait(false);
+        await RefreshAsync().ConfigureAwait(false);
+    }
+
     private async Task SelectSpaceAsync(Guid? spaceId)
     {
         if (_spaces is not null)
@@ -142,6 +150,24 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         if (_disposed) return;
         ApplySpaceScopeToScene();
         await RefreshAsync();
+
+        var existing = _conversationRows
+            .Where(chat => !chat.IsArchived && chat.Kind != ConversationKind.Call)
+            .Where(chat => spaceId is null ? chat.SpaceId is null : chat.SpaceId == spaceId)
+            .OrderByDescending(chat => chat.UpdatedAt)
+            .FirstOrDefault();
+        if (existing is not null)
+        {
+            await _stateStore.MarkReadAsync(existing.Id, DateTimeOffset.UtcNow, _lifetime.Token).ConfigureAwait(false);
+            _activeConversationId = existing.Id;
+            _activeGroupId = existing.ContainerId;
+            await _openConversation(existing).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            return;
+        }
+
+        _scene.SetStatus("This Space has no conversations yet. Starting a new Chat in this Space.");
+        await StartChatAsync(null).ConfigureAwait(false);
     }
 
     public async Task RefreshAsync()
@@ -259,7 +285,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
                 .Select(chat => ConversationEntry(chat, true)));
         }
 
-        var sourceConversationIds = _conversationRows.Select(chat => chat.Id).ToHashSet();
+        var sourceConversationIds = conversations.Select(chat => chat.Id).ToHashSet();
         var files = _currentMode == HavenMode.Chat
             ? _fileRows
                 .Where(file => sourceConversationIds.Contains(file.ConversationId) && Matches(file.OriginalName))

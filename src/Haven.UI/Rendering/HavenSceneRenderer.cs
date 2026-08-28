@@ -122,7 +122,8 @@ public sealed class HavenSceneRenderer
         var hasText = !string.IsNullOrEmpty(input.Text);
         var displayText = input.DisplayText;
         var focused = input.State.HasFlag(HavenElementState.Focused);
-        var centerVertically = !input.Multiline;
+        var centerVertically = !input.Multiline
+            || (input.CenterSingleLineContent && !displayText.Contains('\n'));
         var padding = input.GetValue(HavenProperties.Padding);
         var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
         var rect = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));

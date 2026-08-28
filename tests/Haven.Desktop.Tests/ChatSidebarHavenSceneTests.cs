@@ -209,6 +209,19 @@ public sealed class ChatSidebarHavenSceneTests
     }
 
     [Fact]
+    public void Sidebar_orders_new_chat_file_library_and_chat_groups_like_reference_hierarchy()
+    {
+        using var scene = new ChatSidebarHavenScene();
+        var scroll = Assert.IsType<Container>(scene.Root.DescendantsAndSelf().Single(element => element.Name == "ScrollHost"));
+        var names = scroll.Children.Select(child => child.Name).ToArray();
+
+        Assert.True(Array.IndexOf(names, "NewChat") < Array.IndexOf(names, "FilesHeading"));
+        Assert.True(Array.IndexOf(names, "FilesHeading") < Array.IndexOf(names, "GroupsHeader"));
+        Assert.Equal(HavenVisibility.Collapsed, scene.Search.GetValue(HavenProperties.Visibility));
+        Assert.Single(scene.Root.DescendantsAndSelf().OfType<Input>());
+    }
+
+    [Fact]
     public void Sidebar_scene_contains_only_haven_elements_for_visible_composition()
     {
         using var scene = new ChatSidebarHavenScene();

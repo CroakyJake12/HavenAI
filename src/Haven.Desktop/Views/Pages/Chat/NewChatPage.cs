@@ -23,7 +23,7 @@ namespace Haven.Desktop.Views.Pages.Chat;
 /// Production Haven-native conversation surface. Avalonia owns only the platform host/window/file-picker boundary;
 /// visible Chat composition, editing, transcript rendering, menus and generated UI live in Haven scene elements.
 /// </summary>
-public sealed class NewChatPage : UserControl, IDisposable
+public sealed partial class NewChatPage : UserControl, IDisposable
 {
     private readonly HavenEventBus _bus;
     private readonly IConversationRepository _conversations;
@@ -31,6 +31,8 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly ChatSessionService _sessions;
     private readonly IConversationSafetyService _safety;
     private readonly IConversationVersioningService _versioning;
+    private readonly IMessageAttachmentService? _messageAttachments;
+    private readonly IConversationProductionRepository? _conversationProduction;
     private readonly UserPreferencesService _preferences;
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
@@ -53,13 +55,14 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly List<PromptDefinition> _activeInstructions = [];
     private readonly List<string> _attachedImages = [];
     private readonly Dictionary<string, string> _attachedContext = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<MessageAttachment> _persistedAttachments = [];
+    private readonly Dictionary<Guid, string> _attachmentSourcePaths = [];
     private readonly TaskAttachmentContext _taskAttachments = new();
     private readonly Dictionary<Guid, string> _thinkingContent = [];
     private readonly Dictionary<Guid, long> _thinkingStartTick = [];
     private readonly Dictionary<Guid, long> _thinkingEndTick = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), ChatGenUiSurfaceMount> _generatedSurfaces = [];
     private readonly ChatGenUiNativeControlResolver _genUiNativeResolver = new();
-    private DualModelChatController? _dual;
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
     private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
@@ -74,6 +77,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private ModelDescriptor? _selectedModel;
     private string? _pendingInstruction;
     private bool _pendingInstructionPreservesDraft;
+    private ChatMentionQuery? _activeMention;
     private CancellationTokenSource? _sendCancellation;
     private readonly DispatcherTimer _sendProgressTimer;
     private bool _isSending;
@@ -104,7 +108,9 @@ public sealed class NewChatPage : UserControl, IDisposable
         DashboardTemplateRuntime dashboardTemplate,
         AssessmentTemplateRuntime assessmentTemplate,
         WorkflowTemplateRuntime workflowTemplate,
-        CustomTemplateRuntime customTemplate)
+        CustomTemplateRuntime customTemplate,
+        IMessageAttachmentService? messageAttachments = null,
+        IConversationProductionRepository? conversationProduction = null)
     {
         _bus = bus;
         _conversations = conversations;
@@ -112,6 +118,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         _sessions = sessions;
         _safety = safety;
         _versioning = versioning;
+        _messageAttachments = messageAttachments;
+        _conversationProduction = conversationProduction;
         _preferences = preferences;
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
@@ -171,6 +179,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     public bool HasStarted => _messages.Count > 0;
     public string ActiveAgentName => _activeAgent?.Name ?? "No Agent (Default)";
     public ChatActionMode EffectiveChatActionMode => _chatActionModeOverride ?? ChatActionMode.AllowBasicActions;
+    public GenerativeUiResponseMode EffectiveChatVisualMode => _chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto;
 
     public void ConfigureMode(ModeDefinition mode)
     {
@@ -265,6 +274,14 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (HasStarted) throw new InvalidOperationException("A started conversation cannot change its registered workspace context.");
         _registeredContextOverride = string.IsNullOrWhiteSpace(context) ? null : context.Trim();
         _effortOverride = effortOverride;
+    }
+
+    public async Task AssignSpaceAsync(Guid? spaceId)
+    {
+        _conversation = _conversation with { SpaceId = spaceId, UpdatedAt = DateTimeOffset.UtcNow };
+        if (!_conversation.IsTemporary)
+            await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ShowAddMenu() => _scene.ShowAddMenu();
@@ -452,14 +469,22 @@ public sealed class NewChatPage : UserControl, IDisposable
         _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
+        _persistedAttachments.Clear();
+        _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
+        _multipleResponseModels.Clear();
         _pendingInstruction = null;
         _pendingInstructionPreservesDraft = false;
-        RefreshAttachmentStatus();
         RefreshResponseControls();
         _redoMessages.Clear();
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
+        if (_conversationProduction is not null && !conversation.IsTemporary)
+        {
+            _persistedAttachments.AddRange(await _conversationProduction.GetAttachmentsAsync(conversation.Id, messageId: null, CancellationToken.None));
+            await RefreshPersistedAttachmentPromptContextAsync();
+        }
+        RefreshAttachmentStatus();
         await RefreshSafetyStateAsync();
         RefreshMessages();
         await RefreshContextEntriesAsync();
@@ -496,6 +521,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                 RefreshAttachmentStatus();
                 break;
         }
+        RefreshAttachmentStatus();
         RefreshResponseControls();
     }
 
@@ -535,8 +561,75 @@ public sealed class NewChatPage : UserControl, IDisposable
     public async Task AddFilesAsync(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        var selected = paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => Path.GetFullPath(path.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (selected.Length == 0) return;
+
+        if (_messageAttachments is null)
+        {
+            await AddFilesLegacyFallbackAsync(selected);
+            return;
+        }
+
+        if (_conversation.IsTemporary)
+        {
+            _scene.SetStatus("Files are not persisted in a temporary chat. Turn off Temporary Chat before attaching files.");
+            return;
+        }
+
+        try
+        {
+            await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            _scene.SetStatus("This chat could not be saved before attaching files: " + exception.Message);
+            return;
+        }
+
         var added = 0;
-        foreach (var path in paths.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+        var failed = 0;
+        foreach (var path in selected)
+        {
+            try
+            {
+                var attachment = await _messageAttachments.ImportAsync(
+                    _conversation.Id,
+                    messageId: null,
+                    branchId: null,
+                    path,
+                    options: null,
+                    CancellationToken.None);
+                _persistedAttachments.RemoveAll(item => item.Id == attachment.Id);
+                _persistedAttachments.Add(attachment);
+                _attachmentSourcePaths[attachment.Id] = path;
+                _taskAttachments.AttachFiles([path]);
+                added++;
+            }
+            catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                failed++;
+                _scene.SetStatus($"Could not attach {Path.GetFileName(path)}: {exception.Message}");
+            }
+        }
+
+        await RefreshPersistedAttachmentPromptContextAsync();
+        RefreshAttachmentStatus();
+        if (added > 0)
+        {
+            var status = $"{added} file{(added == 1 ? "" : "s")} attached to this chat and added to File Library.";
+            if (failed > 0) status += $" {failed} file{(failed == 1 ? "" : "s")} could not be attached.";
+            _scene.SetStatus(status);
+        }
+    }
+
+    private async Task AddFilesLegacyFallbackAsync(IEnumerable<string> paths)
+    {
+        var added = 0;
+        foreach (var path in paths)
         {
             var extension = Path.GetExtension(path).ToLowerInvariant();
             if (extension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif")
@@ -553,14 +646,9 @@ public sealed class NewChatPage : UserControl, IDisposable
             {
                 var info = new FileInfo(path);
                 if (info.Length > 2_000_000)
-                {
                     _attachedContext[path] = $"Attached file: {info.Name} ({info.Length:N0} bytes; content omitted because it is too large).";
-                    _taskAttachments.AttachFiles([path]);
-                    added++;
-                    continue;
-                }
-                var text = await File.ReadAllTextAsync(path, CancellationToken.None);
-                _attachedContext[path] = $"Attached file {info.Name}:\n{text}";
+                else
+                    _attachedContext[path] = $"Attached file {info.Name}:\n{await File.ReadAllTextAsync(path, CancellationToken.None)}";
                 _taskAttachments.AttachFiles([path]);
                 added++;
             }
@@ -573,6 +661,31 @@ public sealed class NewChatPage : UserControl, IDisposable
         {
             _scene.SetStatus($"{added} file{(added == 1 ? "" : "s")} attached to this chat.");
             RefreshAttachmentStatus();
+        }
+    }
+
+    private async Task RefreshPersistedAttachmentPromptContextAsync()
+    {
+        if (_messageAttachments is null) return;
+        _attachedImages.Clear();
+        _attachedContext.Remove("persisted-attachments");
+        if (_persistedAttachments.Count == 0) return;
+        try
+        {
+            var context = await _messageAttachments.BuildPromptContextAsync(
+                _conversation.Id,
+                _persistedAttachments.Select(item => item.Id).ToArray(),
+                options: null,
+                CancellationToken.None);
+            _attachedImages.AddRange(context.ImageBase64);
+            var sections = new List<string>();
+            if (!string.IsNullOrWhiteSpace(context.ExtractedText)) sections.Add(context.ExtractedText);
+            if (context.Notices.Count > 0) sections.Add("Attachment processing:\n" + string.Join("\n", context.Notices));
+            if (sections.Count > 0) _attachedContext["persisted-attachments"] = string.Join("\n\n", sections);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus("Attached file context could not be loaded: " + exception.Message);
         }
     }
 
@@ -675,32 +788,33 @@ public sealed class NewChatPage : UserControl, IDisposable
         _bus.RegisterElement("Chat.Composer.Send", Scene);
         _bus.RegisterElement("Chat.Problems.Resolve", Scene);
 
-        // Dual-model comparison is optional: it only appears when App services exposed DualModelService.
-        if (App.Services?.GetService<DualModelService>() is { } dualModels)
-        {
-            _dual = new DualModelChatController(dualModels);
-            _scene.EnsureDualModelBar();
-            _scene.DualToggleRequested += OnDualToggleRequested;
-            _scene.DualModelPickerRequested += OnDualModelPickerRequested;
-            _scene.DualSecondModelChosen += OnDualSecondModelChosen;
-        }
+        WireMultipleResponses();
 
         _scene.SendRequested += async (_, _) => await SubmitCurrentInstructionAsync();
         _scene.StopRequested += OnStopRequested;
+        _scene.Instruction.EditCompleted += OnComposerEditCompleted;
+        _scene.ManageChatRequested += OnManageChatRequested;
         _scene.ResolveProblemsRequested += (_, _) =>
         {
             _bus.Fire("Chat.Problems.Resolve.Click");
             ShowResolveProblems();
         };
-        _scene.AddActionSelected += (_, action) => AddActionSelected?.Invoke(this, action);
+        _scene.AddActionSelected += (_, action) =>
+        {
+            if (_activeMention is not null) ConsumeActiveMention();
+            AddActionSelected?.Invoke(this, action);
+        };
         _scene.CatalogItemSelected += (_, selection) =>
         {
+            if (_activeMention is not null) ConsumeActiveMention();
             ApplyAddSelection(selection);
             AddCatalogItemSelected?.Invoke(this, selection);
+            FocusComposer();
         };
         _scene.MessageActionRequested += OnMessageActionRequested;
         _scene.MarkdownCodeActionRequested += OnMarkdownCodeActionRequested;
         _scene.ContextRemoveRequested += async (_, entryId) => await RemoveContextEntryAsync(entryId);
+        _scene.AttachmentRemoveRequested += OnAttachmentRemoveRequested;
         Scene.InputSubmitted += OnInputSubmitted;
         Scene.PointerPressedOutside += _scene.HideAddMenu;
     }
@@ -733,6 +847,31 @@ public sealed class NewChatPage : UserControl, IDisposable
             _ = surface.SubmitInputAsync(input);
             return;
         }
+    }
+
+    private void OnComposerEditCompleted(object? sender, EventArgs e)
+    {
+        if (ChatMentionQueryParser.TryParse(_scene.Instruction.Text, _scene.Instruction.CaretIndex, out var mention))
+        {
+            _activeMention = mention;
+            _scene.ShowMentionSearch(mention.Query);
+            return;
+        }
+
+        if (_activeMention is null) return;
+        _activeMention = null;
+        _scene.HideAddMenu();
+    }
+
+    private void ConsumeActiveMention()
+    {
+        if (_activeMention is not { } mention) return;
+        _activeMention = null;
+        var text = _scene.Instruction.Text;
+        if (mention.Start < 0 || mention.Length <= 0 || mention.Start + mention.Length > text.Length) return;
+        if (text[mention.Start] != '@') return;
+        _scene.Instruction.Text = text.Remove(mention.Start, mention.Length);
+        _scene.Instruction.SetSelection(mention.Start, mention.Start);
     }
 
     private void ShowResolveProblems()
@@ -781,29 +920,39 @@ public sealed class NewChatPage : UserControl, IDisposable
     private async Task SubmitCurrentInstructionAsync()
     {
         var instruction = _scene.Instruction.Text.Trim();
-        if (_isSending || string.IsNullOrWhiteSpace(instruction)) return;
-        if (!await EnsureConversationMayActAsync("chat.send")) return;
-        if (_selectedModel is null)
+        if (string.IsNullOrWhiteSpace(instruction)) return;
+        if (_isSending || _submissionStarting)
         {
-            _pendingInstruction = instruction;
-            _pendingInstructionPreservesDraft = false;
-            _scene.SetStatus("Connecting to the selected local modelâ€¦");
+            QueueInstruction(instruction);
+            FocusComposer();
             return;
         }
 
-        if (_dual is { IsActive: true })
+        _submissionStarting = true;
+        try
         {
-            if (!_dual.CanRun)
+            if (!await EnsureConversationMayActAsync("chat.send")) return;
+            if (_selectedModel is null)
             {
-                _scene.SetStatus(_dual.SecondModelKey is null
-                    ? "Choose Model B beside the composer before sending in dual mode."
-                    : "A dual comparison is already running.");
+                _pendingInstruction = instruction;
+                _pendingInstructionPreservesDraft = false;
+                _scene.SetStatus("Connecting to the selected local model…");
                 return;
             }
-            await RunDualComparisonAsync(instruction);
+        }
+        finally
+        {
+            _submissionStarting = false;
+        }
+
+        if (MultipleResponsesActive)
+        {
+            await RunMultipleResponsesAsync(instruction);
             return;
         }
 
+        var initialMessageCount = _messages.Count;
+        var allowQueueAdvance = true;
         _pendingInstruction = null;
         _redoMessages.Clear();
         _scene.Instruction.Text = string.Empty;
@@ -817,7 +966,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         var now = DateTimeOffset.UtcNow;
         if (_messages.Count == 0)
         {
-            var title = instruction.Length > 56 ? instruction[..53] + "â€¦" : instruction;
+            var title = instruction.Length > 56 ? instruction[..53] + "…" : instruction;
             _conversation = _conversation with { Title = title, UpdatedAt = now };
         }
 
@@ -855,6 +1004,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                                filePermission: _preferences.FilePermission,
                                commandPermission: _preferences.CommandPermission,
                                browserPermission: _preferences.BrowserPermission,
+                               explicitCapabilities: ExplicitToolCapabilitiesForCurrentChat(),
                                availableCapabilities: ActiveCapabilitiesForCurrentChat()).ConfigureAwait(false))
             {
                 if (streamEvent.Kind == ChatStreamEventKind.AssistantDelta && streamEvent.MessageId is { } deltaMessageId)
@@ -875,10 +1025,20 @@ public sealed class NewChatPage : UserControl, IDisposable
         }
         catch (OperationCanceledException)
         {
+            if (!CurrentAttemptWasAcknowledged(initialMessageCount, instruction))
+            {
+                allowQueueAdvance = false;
+                await PreserveUnacknowledgedInstructionAsync(instruction);
+            }
             await SetStatusAsync("Response stopped.");
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
         {
+            if (!CurrentAttemptWasAcknowledged(initialMessageCount, instruction))
+            {
+                allowQueueAdvance = false;
+                await PreserveUnacknowledgedInstructionAsync(instruction);
+            }
             await SetStatusAsync("Haven could not complete that response: " + exception.Message);
         }
         finally
@@ -892,168 +1052,11 @@ public sealed class NewChatPage : UserControl, IDisposable
             {
                 RefreshVisualState();
                 TrySubmitPendingInstruction();
+                if (allowQueueAdvance) TrySubmitQueuedInstruction();
+                FocusComposer();
             });
         }
     }
-
-    private async void OnDualToggleRequested(object? sender, EventArgs e)
-    {
-        if (_dual is null) return;
-        var activating = !_dual.IsActive;
-        _dual.SetActive(activating);
-        _scene.SetDualActive(activating);
-        if (!activating)
-        {
-            _scene.SetStatus("Dual-model comparison off.");
-            return;
-        }
-        if (_dual.SecondModelKey is not null)
-        {
-            _scene.SetStatus($"Dual-model comparison on — Model A {_selectedModel?.Name ?? "?"} vs {_dual.SecondModelKey}. Session only; nothing is saved.");
-            return;
-        }
-        await TryAutoSelectDualSecondModelAsync();
-    }
-
-    /// <summary>Picks a sensible default Model B from the same installed-model list the model picker uses.</summary>
-    private async Task TryAutoSelectDualSecondModelAsync()
-    {
-        var controller = _dual!;
-        try
-        {
-            var models = await _ollama.GetModelsAsync(CancellationToken.None);
-            if (_dual != controller || !controller.IsActive) return;
-            var primary = _selectedModel?.Name;
-            var candidate = models.Select(model => model.Name)
-                .FirstOrDefault(name => !string.Equals(name, primary, StringComparison.OrdinalIgnoreCase))
-                ?? models.FirstOrDefault()?.Name;
-            if (candidate is null)
-            {
-                _scene.SetStatus("Dual mode is on, but no local model is available for Model B yet.");
-                return;
-            }
-            controller.SetSecondModel(candidate);
-            _scene.SetDualSecondModel(candidate);
-            _scene.SetStatus($"Dual-model comparison on — Model A {primary ?? "primary"} vs {candidate}. Session only; nothing is saved.");
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            _scene.SetStatus("Dual mode is on, but installed models could not be listed: " + exception.Message);
-        }
-    }
-
-    private async void OnDualModelPickerRequested(object? sender, EventArgs e)
-    {
-        try
-        {
-            var models = await _ollama.GetModelsAsync(CancellationToken.None);
-            var primary = _selectedModel?.Name;
-            var keys = models.Select(model => model.Name)
-                .Where(name => !string.Equals(name, primary, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-            if (keys.Length == 0) keys = models.Select(model => model.Name).ToArray();
-            if (keys.Length == 0)
-            {
-                _scene.SetStatus("No local models are installed for a dual comparison.");
-                return;
-            }
-            _scene.ShowDualModelChoices(keys);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            _scene.SetStatus("Installed models could not be listed: " + exception.Message);
-        }
-    }
-
-    private void OnDualSecondModelChosen(object? sender, string modelKey)
-    {
-        if (_dual is null || string.IsNullOrWhiteSpace(modelKey)) return;
-        _dual.SetSecondModel(modelKey);
-        _scene.SetDualSecondModel(modelKey);
-        _scene.SetStatus($"Model B set to {modelKey}.");
-    }
-
-    /// <summary>
-    /// Runs the side-by-side dual comparison instead of the persisted chat pipeline. Deliberately
-    /// session-only and non-streaming: both sides render once from CompleteAsync results and are never
-    /// written to conversation storage; per-side failures stay visible on their own labelled block.
-    /// </summary>
-    private async Task RunDualComparisonAsync(string instruction)
-    {
-        var controller = _dual!;
-        var primaryKey = _selectedModel!.Name;
-        _pendingInstruction = null;
-        _redoMessages.Clear();
-        _scene.Instruction.Text = string.Empty;
-        _bus.Fire("Chat.Composer.Send.Click");
-        _isSending = true;
-        _sendStartTick = Environment.TickCount64;
-        _sendProgressTimer.Start();
-        _sendCancellation = new CancellationTokenSource();
-        RefreshVisualState();
-
-        var now = DateTimeOffset.UtcNow;
-        if (_messages.Count == 0)
-        {
-            var title = instruction.Length > 56 ? instruction[..53] + "â€¦" : instruction;
-            _conversation = _conversation with { Title = title, UpdatedAt = now };
-        }
-        UpsertMessage(new ChatMessage(Guid.NewGuid(), _conversation.Id, MessageRole.User, instruction, null, null, null, now));
-        RefreshMessages();
-
-        try
-        {
-            var run = await controller.RunAsync(
-                instruction,
-                primaryKey,
-                _effortOverride ?? _preferences.DefaultEffort,
-                _sendCancellation.Token);
-            if (run is null)
-            {
-                await SetStatusAsync(controller.SecondModelKey is null
-                    ? "Choose Model B beside the composer before running a dual comparison."
-                    : "A dual comparison is already running.");
-                return;
-            }
-            AppendDualSide(run.First);
-            AppendDualSide(run.Second);
-            await SetStatusAsync($"Dual comparison complete — Model A {FormatDualSideOutcome(run.First)}, Model B {FormatDualSideOutcome(run.Second)}.");
-        }
-        catch (OperationCanceledException)
-        {
-            await SetStatusAsync("Dual comparison stopped.");
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
-        {
-            await SetStatusAsync("Haven could not complete that dual comparison: " + exception.Message);
-        }
-        finally
-        {
-            _sendProgressTimer.Stop();
-            _sendCancellation?.Dispose();
-            _sendCancellation = null;
-            _isSending = false;
-            await RefreshSafetyStateAsync();
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                RefreshVisualState();
-                TrySubmitPendingInstruction();
-            });
-        }
-    }
-
-    private void AppendDualSide(DualModelSide side)
-    {
-        var label = (side.Label == "First" ? "Model A" : "Model B") + $" — {side.ModelKey}";
-        var content = side.Succeeded ? side.Content : $"This side failed: {side.Error}";
-        var message = new ChatMessage(Guid.NewGuid(), _conversation.Id, MessageRole.Assistant, content, label, side.ModelKey, null, DateTimeOffset.UtcNow);
-        UpsertMessage(message);
-        RefreshMessage(message);
-        ScrollToEndIfFollowing(true);
-    }
-
-    private static string FormatDualSideOutcome(DualModelSide side) =>
-        $"{side.Duration.TotalSeconds:0.#}s{(side.Succeeded ? string.Empty : " (failed)")}";
 
     private void ApplyStreamEvent(ChatStreamEvent streamEvent)
     {
@@ -1223,10 +1226,21 @@ public sealed class NewChatPage : UserControl, IDisposable
             message.Id,
             message.Role,
             display ?? string.Empty,
-            message.AgentName ?? "Haven",
+            ReadProducingModelLabel(message),
             _streamingMessages.Contains(message.Id),
             thinking,
             ReadToolActivities(message));
+    }
+
+    private static string ReadProducingModelLabel(ChatMessage message)
+    {
+        if (message.Metadata.TryGetValue("modelNickname", out var nicknameElement)
+            && nicknameElement.ValueKind == JsonValueKind.String
+            && nicknameElement.GetString() is { Length: > 0 } nickname)
+            return nickname;
+        if (!string.IsNullOrWhiteSpace(message.ModelName)) return message.ModelName;
+        if (!string.IsNullOrWhiteSpace(message.AgentName)) return message.AgentName;
+        return "Haven";
     }
 
     private void RefreshGeneratedContent(ChatMessage message)
@@ -1622,7 +1636,10 @@ public sealed class NewChatPage : UserControl, IDisposable
         _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
+        _persistedAttachments.Clear();
+        _attachmentSourcePaths.Clear();
         _taskAttachments.Clear();
+        _multipleResponseModels.Clear();
         _messages.Clear();
         _redoMessages.Clear();
         _safetyLocked = false;
@@ -1667,19 +1684,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         RefreshAttachmentStatus();
     }
 
-    private void RefreshAttachmentStatus()
-    {
-        if (_taskAttachments.IsEmpty)
-        {
-            _scene.SetAttachmentStatus(null);
-            return;
-        }
-        var parts = new List<string>();
-        if (_taskAttachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _taskAttachments.Apps.Select(item => item.Name)));
-        if (_taskAttachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _taskAttachments.Capabilities.Select(item => item.Name)));
-        if (_taskAttachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _taskAttachments.Files.Select(Path.GetFileName)));
-        _scene.SetAttachmentStatus(string.Join("  â€¢  ", parts));
-    }
+    private void RefreshAttachmentStatus() =>
+        _scene.SetAttachmentChips(BuildAttachmentChips());
 
     /// <summary>
     /// Reloads the persisted context rows for the active conversation into the scene Context card,
@@ -1875,6 +1881,10 @@ public sealed class NewChatPage : UserControl, IDisposable
         _sendCancellation?.Dispose();
         _sendProgressTimer.Stop();
         _scene.StopRequested -= OnStopRequested;
+        _scene.Instruction.EditCompleted -= OnComposerEditCompleted;
+        _scene.ManageChatRequested -= OnManageChatRequested;
+        _scene.AttachmentRemoveRequested -= OnAttachmentRemoveRequested;
+        UnwireMultipleResponses();
         Scene.InputSubmitted -= OnInputSubmitted;
         Scene.PointerPressedOutside -= _scene.HideAddMenu;
         ClearGeneratedSurfaces();

@@ -244,17 +244,20 @@ public sealed class HavenLayoutEngine
         var flowChildren = children.Where(ParticipatesInFlow).ToArray();
         var overlayChildren = children.Where(child => !ParticipatesInFlow(child)).ToArray();
         var gap = Resolve(container.GetValue(HavenProperties.Gap), viewport.Width, 0);
-        var content = new HavenSize(
+        var measuredExtent = new HavenSize(
             Math.Max(viewport.Width, container.MeasuredContentSize.Width),
             Math.Max(viewport.Height, container.MeasuredContentSize.Height));
-        container.UpdateScrollMetrics(new HavenSize(viewport.Width, viewport.Height), content);
+        container.UpdateScrollMetrics(new HavenSize(viewport.Width, viewport.Height), measuredExtent);
 
         var scrollable = container.GetValue(HavenProperties.Overflow) == HavenOverflow.Scroll;
+        var arrangedExtent = scrollable
+            ? measuredExtent
+            : new HavenSize(viewport.Width, viewport.Height);
         var contentBounds = new HavenRect(
             viewport.X - (scrollable ? container.ScrollX : 0),
             viewport.Y - (scrollable ? container.ScrollY : 0),
-            content.Width,
-            content.Height);
+            arrangedExtent.Width,
+            arrangedExtent.Height);
 
         switch (container.Layout)
         {

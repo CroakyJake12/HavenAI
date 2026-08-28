@@ -40,6 +40,36 @@ public sealed class HavenUiLayoutTests
     }
 
     [Fact]
+    public void Fixed_vertical_parent_keeps_fraction_scroll_body_and_footer_inside_viewport()
+    {
+        var root = SizedContainer(100, 200);
+        root.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        var header = new Container();
+        header.SetValue(HavenProperties.Height, HavenLength.Px(30));
+        var body = new Container();
+        body.SetValue(HavenProperties.Height, HavenLength.Fr(1));
+        body.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        for (var index = 0; index < 4; index++)
+        {
+            var row = new Text($"Row {index}");
+            row.SetValue(HavenProperties.Height, HavenLength.Px(60));
+            body.Add(row);
+        }
+        var footer = new Container();
+        footer.SetValue(HavenProperties.Height, HavenLength.Px(20));
+        root.Add(header);
+        root.Add(body);
+        root.Add(footer);
+
+        Layout(root, new NamedMeasure());
+
+        Assert.Equal(130, body.Bounds.Height);
+        Assert.Equal(180, footer.Bounds.Y);
+        Assert.Equal(200, footer.Bounds.Bottom);
+        Assert.Equal(110, body.MaxScrollY);
+    }
+
+    [Fact]
     public void Horizontal_fraction_allocates_remaining_width_by_weight()
     {
         var root = SizedContainer(280, 80);

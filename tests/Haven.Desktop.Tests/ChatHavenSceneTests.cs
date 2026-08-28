@@ -67,6 +67,66 @@ public sealed class ChatHavenSceneTests
         }
     }
 
+    [AvaloniaFact]
+    public void Sending_with_a_draft_queues_next_message_instead_of_stopping_current_response()
+    {
+        using var scene = new ChatHavenScene();
+        var host = new HavenSceneControl { Root = scene.Root };
+        var window = new Window { Width = 1000, Height = 760, Content = host };
+        window.Show();
+        window.UpdateLayout();
+        var router = new HavenInputRouter(scene.Root);
+        try
+        {
+            var sends = 0;
+            var stops = 0;
+            scene.SendRequested += (_, _) => sends++;
+            scene.StopRequested += (_, _) => stops++;
+            scene.SetSending(true, modelAvailable: true);
+            scene.Instruction.Text = "Next question";
+            window.UpdateLayout();
+
+            Assert.Equal("Queue next message", scene.SendButton.Accessibility.AccessibleName);
+            Assert.Equal("arrow-up", scene.SendIcon.Key);
+            Click(router, scene.SendButton);
+            Assert.Equal(1, sends);
+            Assert.Equal(0, stops);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [Fact]
+    public void Multiline_composer_grows_to_a_bounded_viewport_and_keeps_larger_editable_content()
+    {
+        using var scene = new ChatHavenScene();
+
+        scene.Instruction.Text = string.Join('\n', Enumerable.Range(1, 8).Select(index => $"Line {index}"));
+
+        Assert.Equal(124d, scene.InstructionViewport.GetValue(HavenProperties.Height).Value, 3);
+        Assert.True(scene.Instruction.GetValue(HavenProperties.Height).Value > 124d);
+        Assert.Contains("124", scene.ComposerRow.Rows, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Multiple_responses_selector_keeps_all_installed_models_and_selected_state()
+    {
+        using var scene = new ChatHavenScene();
+        var models = new[] { "alpha", "beta", "gamma", "delta", "epsilon" };
+
+        scene.ShowMultipleResponseModels(models, ["alpha", "beta", "gamma", "delta"]);
+
+        var results = scene.AddMenuPrefab.GetComponent<Container>("CatalogResults");
+        var buttons = results.Children.OfType<Haven.UI.Components.Button>().ToArray();
+        Assert.Equal(5, buttons.Length);
+        Assert.StartsWith("✓ ", buttons[0].Content, StringComparison.Ordinal);
+        Assert.StartsWith("✓ ", buttons[3].Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("✓", buttons[4].Content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Tool_activity_rows_share_message_runtime_and_restore_in_order()
     {
@@ -160,7 +220,16 @@ public sealed class ChatHavenSceneTests
 
         scene.ShowAddMenu();
         Assert.Equal(HavenVisibility.Visible, scene.AddOverlay.GetValue(HavenProperties.Visibility));
-        Assert.Equal("Manage Responses", scene.AddMenuPrefab.DescendantsAndSelf().OfType<Text>().First(text => text.Content == "Manage Responses").Content);
+        Assert.Equal("Attach to Chat", scene.AddMenuPrefab.GetComponent<Text>("MenuTitle").Content);
+        Assert.Equal(HavenVisibility.Collapsed, scene.AddMenuPrefab.GetComponent<Input>("CatalogSearch").GetValue(HavenProperties.Visibility));
+        var browseOrder = scene.AddMenuPrefab.GetComponent<Container>("Tools").Children
+            .OfType<Haven.UI.Components.Button>()
+            .Select(button => button.Name)
+            .ToArray();
+        Assert.Equal(new[] { "AttachFiles", "Apps", "Capabilities", "Instructions", "Agents" }, browseOrder);
+        Assert.Equal(HavenVisibility.Collapsed, scene.AddMenuPrefab.GetComponent<Haven.UI.Components.Button>("AllowActions").GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.AddMenuPrefab.GetComponent<Haven.UI.Components.Button>("VisualResponses").GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Visible, scene.AddMenuPrefab.GetComponent<Haven.UI.Components.Button>("MultipleResponses").GetValue(HavenProperties.Visibility));
 
         scene.HideAddMenu();
         Assert.Equal(HavenVisibility.Collapsed, scene.AddOverlay.GetValue(HavenProperties.Visibility));
@@ -187,6 +256,31 @@ public sealed class ChatHavenSceneTests
 
             Assert.Equal(HavenVisibility.Visible, scene.AddOverlay.GetValue(HavenProperties.Visibility));
             Assert.True(scene.AddOverlay.Bounds.Bottom <= host.SurfaceMetrics.Viewport.Height + 0.5);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Chat_composer_input_stays_inset_inside_clipped_viewport_when_compact_and_expanded()
+    {
+        using var scene = new ChatHavenScene();
+        var host = new HavenSceneControl { Root = scene.Root };
+        var window = new Window { Width = 1000, Height = 760, Content = host };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            Assert.True(scene.Instruction.Bounds.Y >= scene.InstructionViewport.Bounds.Y + 1.5);
+            Assert.True(scene.Instruction.Bounds.Bottom <= scene.InstructionViewport.Bounds.Bottom - 1.5);
+
+            scene.Instruction.Text = string.Join('\n', Enumerable.Range(1, 8).Select(index => $"Line {index}"));
+            window.UpdateLayout();
+            Assert.True(scene.Instruction.Bounds.Y >= scene.InstructionViewport.Bounds.Y + 1.5);
+            Assert.True(scene.InstructionViewport.Bounds.Bottom <= host.SurfaceMetrics.Viewport.Height + 0.5);
         }
         finally
         {

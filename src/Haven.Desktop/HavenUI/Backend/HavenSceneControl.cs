@@ -259,6 +259,9 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             new HavenPoint(p.X, p.Y),
             e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse,
             ToHavenModifiers(e.KeyModifiers));
+        Cursor = _input?.Hovered is Input
+            ? new Cursor(StandardCursorType.Ibeam)
+            : new Cursor(StandardCursorType.Arrow);
         InvalidateScene();
     }
 
@@ -266,6 +269,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     {
         base.OnPointerExited(e);
         _input?.PointerExited();
+        Cursor = new Cursor(StandardCursorType.Arrow);
         InvalidateScene();
     }
 
@@ -434,7 +438,8 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         input.GetValue(HavenProperties.FontSize),
         input.GetValue(HavenProperties.FontWeight),
         contentWidth,
-        CenterVertically: !input.Multiline);
+        CenterVertically: !input.Multiline
+            || (input.CenterSingleLineContent && !input.DisplayText.Contains('\n')));
 
     internal static HavenInputModifiers ToHavenModifiers(KeyModifiers modifiers) => new(
         Shift: modifiers.HasFlag(KeyModifiers.Shift),

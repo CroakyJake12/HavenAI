@@ -198,8 +198,8 @@ public sealed class WorkspaceWindowService(
 
             var minimumWidth = double.IsFinite(window.MinWidth) && window.MinWidth > 0 ? window.MinWidth : 320d;
             var minimumHeight = double.IsFinite(window.MinHeight) && window.MinHeight > 0 ? window.MinHeight : 240d;
-            window.Width = Math.Clamp(bounds.Width, minimumWidth, 7680d);
-            window.Height = Math.Clamp(bounds.Height, minimumHeight, 4320d);
+            window.Width = Math.Clamp(bounds.Width, minimumWidth, 1600d);
+            window.Height = Math.Clamp(bounds.Height, minimumHeight, 1000d);
 
             if (Math.Abs(bounds.X) <= 32768 && Math.Abs(bounds.Y) <= 32768)
                 window.Position = new PixelPoint(bounds.X, bounds.Y);

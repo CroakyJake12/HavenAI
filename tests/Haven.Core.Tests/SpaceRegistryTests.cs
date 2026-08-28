@@ -132,6 +132,20 @@ public sealed class SpaceRegistryTests
     }
 
     [Fact]
+    public async Task Deleting_current_custom_space_returns_to_unscoped_chat()
+    {
+        var store = new MemorySettingsStore();
+        var registry = new SpaceRegistry(store);
+        var created = await registry.CreateAsync("Temporary Space");
+        await registry.SetCurrentSpaceIdAsync(created.Id);
+
+        await registry.DeleteAsync(created.Id);
+
+        Assert.Null(await registry.GetCurrentSpaceIdAsync());
+        Assert.Null(await registry.GetAsync(created.Id));
+    }
+
+    [Fact]
     public async Task Built_in_spaces_cannot_be_deleted()
     {
         var registry = new SpaceRegistry(new MemorySettingsStore());

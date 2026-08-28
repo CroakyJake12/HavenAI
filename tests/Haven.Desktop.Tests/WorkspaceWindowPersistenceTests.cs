@@ -20,6 +20,17 @@ public sealed class WorkspaceWindowPersistenceTests
     }
 
     [AvaloniaFact]
+    public void ApplyWindowBounds_clamps_oversized_geometry_to_common_restore_size()
+    {
+        var window = new Window { MinWidth = 420, MinHeight = 320, Width = 640, Height = 480 };
+
+        WorkspaceWindowService.ApplyWindowBounds(window, """{"X":120,"Y":80,"Width":6000,"Height":3000}""");
+
+        Assert.Equal(1600, window.Width);
+        Assert.Equal(1000, window.Height);
+    }
+
+    [AvaloniaFact]
     public void ApplyWindowBounds_ignores_corrupt_or_invalid_geometry()
     {
         var window = new Window { MinWidth = 420, MinHeight = 320, Width = 640, Height = 480 };

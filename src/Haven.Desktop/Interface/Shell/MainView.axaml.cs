@@ -919,7 +919,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             _dashboardTemplate,
             _assessmentTemplate,
             _workflowTemplate,
-            _customTemplate);
+            _customTemplate,
+            Haven.Desktop.App.Services?.GetService<IMessageAttachmentService>(),
+            Haven.Desktop.App.Services?.GetService<IConversationProductionRepository>());
         page.ModelChanged += OnNewChatModelChanged;
         page.ConversationStateChanged += OnNewChatConversationStateChanged;
         page.AddActionSelected += OnNewChatAddActionSelected;

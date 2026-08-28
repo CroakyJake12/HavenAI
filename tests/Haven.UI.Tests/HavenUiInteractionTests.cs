@@ -119,6 +119,22 @@ public sealed class HavenUiInteractionTests
     }
 
     [Fact]
+    public void Input_edit_completed_observes_final_caret_state()
+    {
+        var input = new Input { Text = "@" };
+        input.PlaceCaretAtEnd();
+        var observed = new List<(string Text, int Caret)>();
+        input.EditCompleted += (_, _) => observed.Add((input.Text, input.CaretIndex));
+
+        Assert.True(input.InsertText("comp"));
+        Assert.Equal(("@comp", 5), observed[^1]);
+        Assert.True(input.Backspace());
+        Assert.Equal(("@com", 4), observed[^1]);
+        Assert.True(input.Undo());
+        Assert.Equal(("@comp", 5), observed[^1]);
+    }
+
+    [Fact]
     public void Input_selection_replace_cut_and_undo_redo_are_shared_state()
     {
         var input = new Input { Text = "Alpha Beta" };
