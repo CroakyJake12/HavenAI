@@ -1,0 +1,42 @@
+{
+  "evidenceLabel": "SIMULATED — NOT REAL AOSP VALIDATION",
+  "workspaceName": "SIMULATED AOSP · HelloHaven",
+  "virtualFiles": [
+    {"path":"build/soong/README.simulated.txt","resourceName":"soong-readme.fixture.txt","content":"SIMULATED AOSP FIXTURE — no Soong executable is present."},
+    {"path":"packages/apps/HelloHaven/Android.bp","resourceName":"android-build-blueprint.fixture.txt","content":"// SIMULATED display resource only\nandroid_app { name: \"HelloHaven\" }"},
+    {"path":"packages/apps/HelloHaven/AndroidManifest.xml","resourceName":"android-manifest.fixture.txt","content":"<!-- SIMULATED AOSP FIXTURE -->\n<manifest package=\"com.haven.hello\" />"},
+    {"path":"packages/apps/HelloHaven/src/com/haven/hello/Greeting.java","resourceName":"greeting-java.fixture.txt","content":"// SIMULATED AOSP FIXTURE\npackage com.haven.hello;\n\npublic final class Greeting {\n    private Greeting() {}\n\n    public static String message() {\n        return GreetingText.value;\n    }\n}"},
+    {"path":"packages/apps/HelloHaven/src/com/haven/hello/MainActivity.java","resourceName":"main-activity-java.fixture.txt","content":"// SIMULATED AOSP FIXTURE\npackage com.haven.hello;\npublic final class MainActivity {}"},
+    {"path":"packages/apps/HelloHaven/tests/src/com/haven/hello/GreetingTest.java","resourceName":"greeting-test-java.fixture.txt","content":"// SIMULATED AOSP FIXTURE\npackage com.haven.hello;\npublic final class GreetingTest {}"}
+  ],
+  "logicalRows": [
+    "Apps / HelloHaven / Sources / Greeting.java",
+    "Apps / HelloHaven / Sources / MainActivity.java",
+    "Apps / HelloHaven / Tests / GreetingTest.java",
+    "Apps / HelloHaven / Manifest / AndroidManifest.xml",
+    "Apps / HelloHaven / Build / Android.bp"
+  ],
+  "filesystemRows": [
+    "build/soong/README.simulated.txt",
+    "packages/apps/HelloHaven/Android.bp",
+    "packages/apps/HelloHaven/AndroidManifest.xml",
+    "packages/apps/HelloHaven/src/com/haven/hello/Greeting.java",
+    "packages/apps/HelloHaven/src/com/haven/hello/MainActivity.java",
+    "packages/apps/HelloHaven/tests/src/com/haven/hello/GreetingTest.java"
+  ],
+  "edit": {
+    "path": "packages/apps/HelloHaven/src/com/haven/hello/Greeting.java",
+    "line": 8,
+    "brokenText": "return GreetingText.value;",
+    "fixedText": "return \"Hello from Haven\";"
+  },
+  "outputs": {
+    "buildFailed": "[SIMULATED — NOT REAL AOSP VALIDATION]\npackages/apps/HelloHaven/src/com/haven/hello/Greeting.java:8: error: cannot find symbol\nSIMULATED_EXIT_CODE=1",
+    "buildPassed": "[SIMULATED — NOT REAL AOSP VALIDATION]\nHelloHaven build completed successfully\nSIMULATED_EXIT_CODE=0",
+    "deployPassed": "[SIMULATED — NOT REAL AOSP VALIDATION]\nInstalled HelloHaven on HAVEN_SIM_001\nSIMULATED_EXIT_CODE=0",
+    "device": "[SIMULATED — NOT REAL AOSP VALIDATION]\nHAVEN_SIM_001 · Haven Simulated Device · device · API 35 · battery 84%",
+    "logcat": "[SIMULATED — NOT REAL AOSP VALIDATION]\nI/HelloHaven: Greeting=Hello from Haven\nI/HelloHaven: Fixture ready",
+    "tests": "[SIMULATED — NOT REAL AOSP VALIDATION]\n1 total · 1 passed · 0 failed\nSIMULATED_EXIT_CODE=0",
+    "changes": "[SIMULATED — NOT REAL AOSP VALIDATION]\nM packages/apps/HelloHaven/src/com/haven/hello/Greeting.java\n-return GreetingText.value;\n+return \"Hello from Haven\";"
+  }
+}
