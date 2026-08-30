@@ -33,6 +33,7 @@ dotnet publish "$project" \
   --framework net10.0 \
   --runtime "$rid" \
   --self-contained false \
+  -p:TargetFrameworks=net10.0 \
   -p:UseAppHost=true \
   --output "$publish_dir"
 
