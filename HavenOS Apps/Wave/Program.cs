@@ -32,9 +32,11 @@ internal static class WaveSurface
             return WaveSurfaceState.Loaded(PcmWaveformReader.Decode(fullPath));
         }
         catch (Exception exception) when (exception is IOException
+            or InvalidDataException
             or UnauthorizedAccessException
             or ArgumentException
-            or NotSupportedException)
+            or NotSupportedException
+            or OverflowException)
         {
             return WaveSurfaceState.Failed("Wave could not decode this file. Only valid 16-bit PCM WAV audio is supported by this first standalone slice.");
         }
@@ -98,7 +100,7 @@ internal static class PcmWaveformReader
             throw new InvalidDataException("WAV format or data chunk is missing.");
         if (formatTag != 1 || bitsPerSample != 16)
             throw new NotSupportedException("Only 16-bit PCM WAV audio is supported.");
-        if (channels == 0 || sampleRate == 0)
+        if (channels == 0 || sampleRate == 0 || sampleRate > (uint)int.MaxValue)
             throw new InvalidDataException("WAV format values are invalid.");
 
         var expectedBlockAlign = channels * sizeof(short);
@@ -132,7 +134,7 @@ internal static class PcmWaveformReader
         }
 
         var durationSeconds = totalFrames / (double)sampleRate;
-        return new WaveformPreview(Path.GetFullPath(path), durationSeconds, sampleRate, channels, peaks);
+        return new WaveformPreview(Path.GetFullPath(path), durationSeconds, (int)sampleRate, channels, peaks);
     }
 
     private static string ReadFourCc(BinaryReader reader)
