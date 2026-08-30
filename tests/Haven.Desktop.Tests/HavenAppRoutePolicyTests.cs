@@ -24,7 +24,7 @@ public sealed class HavenAppRoutePolicyTests
         { "plan", HavenAppRouteKind.Plan, HavenSurface.Plan },
         { "training", HavenAppRouteKind.Training, HavenSurface.Training },
         { "imagine", HavenAppRouteKind.Imagine, HavenSurface.Imagine },
-        { "write", HavenAppRouteKind.ModeWorkspace, HavenSurface.Write },
+        { "write", HavenAppRouteKind.Write, HavenSurface.Write },
         { "canvas", HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas },
         { "present", HavenAppRouteKind.ModeWorkspace, HavenSurface.Present },
         { "data", HavenAppRouteKind.ModeWorkspace, HavenSurface.Data },

@@ -49,7 +49,7 @@ public static class HavenAppRoutePolicy
             "automations" => new(HavenAppRouteKind.Automations, HavenSurface.Automations),
             "terminal" => new(HavenAppRouteKind.Terminal, HavenSurface.Terminal),
             "imagine" => new(HavenAppRouteKind.Imagine, HavenSurface.Imagine),
-            "write" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Write),
+            "write" => new(HavenAppRouteKind.Write, HavenSurface.Write),
             "canvas" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas),
             "present" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Present),
             "data" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Data),
