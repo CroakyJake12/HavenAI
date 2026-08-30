@@ -40,7 +40,7 @@ public sealed partial class TerminalPage : UserControl, IDisposable
         _home = StartDirectory(initialDirectory);
         _session = CreateSession(_home);
         InitializeComponent();
-        (this.FindControl<Grid>("CodeBehindHost") ?? throw new InvalidOperationException("Terminal host missing.")).Children.Add(Build());
+        Content = BuildHuiWorkspace();
         _input.KeyDown += InputKeyDown; _stop.Click += (_, _) => CancelRunningCommand();
         AttachedToVisualTree += Attached; DetachedFromVisualTree += Detached;
         UpdatePrompt();
@@ -55,7 +55,7 @@ public sealed partial class TerminalPage : UserControl, IDisposable
     public bool IsRunning => _running;
     public string WorkingDirectory => _session.Metadata.CurrentWorkingDirectory ?? _home;
     public TerminalSessionMetadata SessionMetadata => _session.Metadata;
-    public void FocusCommandLine() => _input.Focus();
+    public void FocusCommandLine() { if (_huiScene is not null && _huiCommandInput is not null) _huiScene.FocusElement(_huiCommandInput); else _input.Focus(); }
     public void CancelRunningCommand()
     {
         if (!_running) return;
@@ -117,7 +117,7 @@ public sealed partial class TerminalPage : UserControl, IDisposable
     private void Deny()
     {
         if (_pending is not null) { CommandLine(SensitiveTextRedactor.Redact(_pending)); ErrorLine("Command denied by user."); }
-        _pending = null; _approval.IsVisible = false; _input.IsEnabled = true; Status("Denied"); _input.Focus();
+        _pending = null; _approval.IsVisible = false; _input.IsEnabled = true; Status("Denied"); SyncHuiInputState(); FocusCommandLine();
     }
 
     private async Task RunAsync(string command)
@@ -253,15 +253,15 @@ public sealed partial class TerminalPage : UserControl, IDisposable
 
     private void Remember(string value) { _history.Add(value); _historyIndex = _history.Count; }
     private void History(int delta) { if (_history.Count == 0) return; _historyIndex = Math.Clamp(_historyIndex + delta, 0, _history.Count); _input.Text = _historyIndex == _history.Count ? "" : _history[_historyIndex]; _input.CaretIndex = _input.Text?.Length ?? 0; }
-    private void Running(bool value) { _running = value; _stop.IsEnabled = value; _input.IsEnabled = !value && _pending is null; }
-    private void UpdatePrompt() => _prompt.Text = $"PS {SensitiveTextRedactor.Redact(WorkingDirectory)}> ";
-    private void Status(string value) => _status.Text = $"{value} · command permission: {_prefs.CommandPermission}";
+    private void Running(bool value) { _running = value; _stop.IsEnabled = value; _input.IsEnabled = !value && _pending is null; SyncHuiInputState(); }
+    private void UpdatePrompt() { _prompt.Text = $"PS {SensitiveTextRedactor.Redact(WorkingDirectory)}> "; SyncHuiChrome(); }
+    private void Status(string value) { _status.Text = $"{value} · command permission: {_prefs.CommandPermission}"; SyncHuiChrome(value); }
     private void CommandLine(string value) => Line($"PS {SensitiveTextRedactor.Redact(WorkingDirectory)}> {value}", "#7EE787");
     private void OutputLine(string value) => Multiline(value, "#E6EDF3");
     private void ErrorLine(string value) => Multiline(value, "#FF7B72");
     private void SystemLine(string value) => Multiline(value, "#8B949E");
     private void Multiline(string value, string color) { foreach (var line in value.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')) Line(line, color); }
-    private void Line(string value, string color) { _lines.Children.Add(new TextBlock { Text = value, FontFamily = new("Cascadia Mono, Consolas"), FontSize = 13, Foreground = B(color), TextWrapping = TextWrapping.NoWrap }); Dispatcher.UIThread.Post(() => _scroll.ScrollToEnd()); }
+    private void Line(string value, string color) { _lines.Children.Add(new SelectableTextBlock { Text = value, FontFamily = new("Cascadia Mono, Consolas"), FontSize = 13, Foreground = B(color), TextWrapping = TextWrapping.NoWrap }); Dispatcher.UIThread.Post(() => _scroll.ScrollToEnd()); }
     private static string StartDirectory(string? path) { if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)) return Path.GetFullPath(path); var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); return Directory.Exists(home) ? home : Environment.CurrentDirectory; }
     private static TextBlock Mono(string text) => new() { Text = text, FontFamily = new("Cascadia Mono, Consolas"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private static Button Btn(string text) => new() { Content = text, MinHeight = 34, Padding = new Thickness(12, 5) };

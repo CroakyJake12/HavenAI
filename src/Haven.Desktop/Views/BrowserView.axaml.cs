@@ -639,14 +639,15 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         {
             _documentTitle = null;
             _favicon = null;
-            Publish(Snapshot("Navigation failed"));
+            PublishSnapshot("Navigation failed");
             return;
         }
         _lastCommittedAddress = request;
         try
         {
             var metadata = await ReadPageMetadataAsync(request).ConfigureAwait(false);
-            if (_disposed || !Equals(_webView.Source, request)) return;
+            var isCurrentRequest = await Dispatcher.UIThread.InvokeAsync(() => !_disposed && Equals(_webView.Source, request));
+            if (!isCurrentRequest) return;
             _documentTitle = metadata.Title;
             _favicon = metadata.Favicon;
         }
@@ -656,13 +657,17 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
             _documentTitle = request.Host;
             _favicon = null;
         }
-        Publish(Snapshot(request.Host));
+        PublishSnapshot(request.Host);
     }
 
     private async Task<BrowserPageMetadata> ReadPageMetadataAsync(Uri address)
     {
         const string script = "(() => [document.title || location.hostname, document.querySelector('link[rel~=icon],link[rel=apple-touch-icon]')?.href || ''].join('\\u001f'))()";
-        var raw = await _webView.InvokeScript(script).ConfigureAwait(false);
+        string? raw;
+        if (Dispatcher.UIThread.CheckAccess())
+            raw = await _webView.InvokeScript(script).ConfigureAwait(false);
+        else
+            raw = await Dispatcher.UIThread.InvokeAsync(() => _webView.InvokeScript(script));
         var value = raw ?? string.Empty;
         if (!string.IsNullOrEmpty(value))
         {
@@ -686,7 +691,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
             Publish(_state with { Status = "Popup request was missing a destination." });
             return;
         }
-        var requester = _webView.Source;
+        var requester = Dispatcher.UIThread.CheckAccess()
+            ? _webView.Source
+            : await Dispatcher.UIThread.InvokeAsync(() => _webView.Source);
         var requesterAssessment = BrowserNativeRequestPolicy.AssessTopLevel(requester);
         var decision = requesterAssessment.IsAllowed && requester?.Scheme is "http" or "https"
             ? _permissions.GetDecision(requester, BrowserSitePermissionKind.WindowManagement)
@@ -725,7 +732,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     private void OnAdapterCreated(object? sender, WebViewAdapterEventArgs args)
     {
         if (_disposed) return;
-        if (!_adapterLost) { Publish(Snapshot("Native browser ready")); return; }
+        if (!_adapterLost) { PublishSnapshot("Native browser ready"); return; }
         _adapterLost = false;
         if (!_recoveryLimiter.TryAcquire(DateTimeOffset.UtcNow))
         {
@@ -733,7 +740,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
             return;
         }
         var restore = _lastCommittedAddress;
-        if (restore is null) { Publish(Snapshot("Browser adapter recovered.")); return; }
+        if (restore is null) { PublishSnapshot("Browser adapter recovered."); return; }
         Publish(_state with { Address = restore, IsLoading = true, Status = "Browser adapter recovered. Restoring the last page…" });
         Dispatcher.UIThread.Post(() => { if (!_disposed) _webView.Navigate(restore); });
     }
@@ -741,6 +748,18 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     /// <summary>
     /// Performs the snapshot step owned by this component.
     /// </summary>
+    private void PublishSnapshot(string status, bool isLoading = false)
+    {
+        void Capture()
+        {
+            if (_disposed) return;
+            Publish(Snapshot(status, isLoading));
+        }
+
+        if (Dispatcher.UIThread.CheckAccess()) Capture();
+        else Dispatcher.UIThread.Post(Capture);
+    }
+
     private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(
         _webView.Source,
         string.IsNullOrWhiteSpace(_documentTitle) ? _webView.Source?.Host ?? "Browser" : _documentTitle,
