@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Haven
+Comment=Open the Haven desktop workspace
+TryExec=haven
+Exec=haven %U
+Terminal=false
+Categories=Utility;Office;
