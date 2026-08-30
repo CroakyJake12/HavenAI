@@ -5,13 +5,13 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Browser;
 using Haven.Core;
-#if !ANDROID
+#if HAVEN_WINDOWS_DESKTOP
 using Microsoft.Web.WebView2.Core;
 #endif
 
 namespace Haven.Desktop.Views.Pages.Browser;
 
-#if ANDROID
+#if !HAVEN_WINDOWS_DESKTOP
 internal sealed class BrowserNativeWebViewDownloadBridge
 {
     public static void Attach(
