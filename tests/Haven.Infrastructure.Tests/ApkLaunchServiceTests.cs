@@ -14,7 +14,7 @@ public sealed class ApkLaunchServiceTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal("none", capability.RuntimeId);
-        Assert.Contains("No APK runtime provider", capability.UnavailableReason, StringComparison.Ordinal);
+        Assert.Contains("No APK runtime provider", capability.UnavailableReason ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
