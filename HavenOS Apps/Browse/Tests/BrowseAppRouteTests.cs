@@ -1,5 +1,6 @@
 using Haven.Application;
 using Haven.Browser;
+using HavenOS.Apps.Browse;
 
 namespace HavenOS.Apps.Browse.Tests;
 
