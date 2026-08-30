@@ -1756,6 +1756,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 case HavenSurface.Mesh:
                     OpenMeshDashboard();
                     break;
+                case HavenSurface.Maps:
+                    OpenMaps();
+                    break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);
                     if (registered is not null)

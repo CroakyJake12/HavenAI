@@ -1,5 +1,6 @@
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
 using Haven.Desktop.Views.Pages.Maps;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,12 +18,21 @@ public sealed partial class MainView
             return;
         }
 
-        var services = App.Services
-            ?? throw new InvalidOperationException("Haven services are unavailable while opening Maps.");
-        var page = new MapsPage(
-            services.GetRequiredService<IMapService>(),
-            services.GetRequiredService<ITileSource>(),
-            services.GetRequiredService<IMapsSavedPlaceStore>());
+        var services = App.Services;
+        var maps = services?.GetService<IMapService>();
+        var tiles = services?.GetService<ITileSource>();
+        var savedPlaces = services?.GetService<IMapsSavedPlaceStore>();
+        if (maps is null || tiles is null || savedPlaces is null)
+        {
+            _notifications.Show(
+                "Maps unavailable",
+                "Maps is registered, but its map services are not available in this image.",
+                ToastKind.Warning,
+                TimeSpan.FromSeconds(5));
+            return;
+        }
+
+        var page = new MapsPage(maps, tiles, savedPlaces);
         AddOrSelectTab(key, "Maps", page, closeable: true, surface: HavenSurface.Maps);
     }
 }
