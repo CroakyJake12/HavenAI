@@ -37,7 +37,7 @@ public interface ISpacesNavigationHost
 /// </summary>
 public sealed class SpacesAppSurface
 {
-    private static readonly IReadOnlyList<SpacesNavigationItem> NavigationItems = Array.AsReadOnly(
+    private static readonly IReadOnlyList<SpacesNavigationItem> NavigationItems = Array.AsReadOnly<SpacesNavigationItem>(
     [
         new(SpacesDestination.Home, "Home", "home"),
         new(SpacesDestination.Chat, "Chat", "chat"),
