@@ -21,6 +21,16 @@ public sealed partial class CanvasInteractionController
     public void BeginEraseGesture() => _eraseGestureCaptured = false;
     public void EndEraseGesture() => _eraseGestureCaptured = false;
 
+    public bool ReleaseInteraction()
+    {
+        var changed = _activeStroke is not null || _eraseGestureCaptured;
+        _activeStroke = null;
+        _dragObjectId = null;
+        _gestureCaptured = false;
+        _eraseGestureCaptured = false;
+        return changed;
+    }
+
     public IReadOnlyCollection<Guid> SelectViewportPolygon(IReadOnlyList<CanvasPointerSample> samples, bool additive = false)
     {
         ArgumentNullException.ThrowIfNull(samples);

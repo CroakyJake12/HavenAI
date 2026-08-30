@@ -38,4 +38,31 @@ public sealed class FileMailDraftStoreTests : IDisposable
 
         Assert.NotNull(restored);
         Assert.Equal(localId, restored.LocalId);
-       
+        Assert.Equal(accountId, restored.AccountId);
+        Assert.Equal("provider-draft-42", restored.DraftId);
+        Assert.Equal(MailResponseKind.ReplyAll, restored.ResponseKind);
+        Assert.Equal("<p>Hello <strong>world</strong></p>", restored.Body);
+        Assert.True(restored.IsHtml);
+        Assert.Equal(CalendarProviderKind.Google, restored.Provider);
+        Assert.Equal(MailDraftPersistenceState.Saved, restored.PersistenceState);
+        Assert.Equal("safe marker", restored.LastSafeError);
+        var attachment = Assert.Single(restored.Attachments);
+        Assert.Equal(attachmentId, attachment.LocalId);
+        Assert.Equal(new byte[] { 1, 2, 3, 4 }, attachment.Content);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+    }
+
+    private sealed class TestAppPaths(string root) : IAppPaths
+    {
+        public string DataDirectory { get; } = root;
+        public string DatabasePath => Path.Combine(DataDirectory, "haven.db");
+        public string BrowserProfileDirectory => Path.Combine(DataDirectory, "browser");
+        public string AttachmentsDirectory => Path.Combine(DataDirectory, "attachments");
+        public string LogsDirectory => Path.Combine(DataDirectory, "logs");
+        public string LegacyStatePath => Path.Combine(DataDirectory, "legacy.json");
+    }
+}

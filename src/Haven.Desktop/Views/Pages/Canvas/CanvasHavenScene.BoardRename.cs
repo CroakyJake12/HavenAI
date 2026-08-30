@@ -9,11 +9,10 @@ internal sealed partial class CanvasHavenScene
     {
         if (index < 0 || index >= _boardTitles.Count) return;
         EnsureBoardRenamePanel();
-        _openPopup?.Dismiss();
         HidePanels();
         _renameBoardIndex = index;
         _renameBoardInput.Text = _boardTitles[index];
-        _renameBoardPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
+        _renameBoardPanel!.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
     }
 
     private void EnsureBoardRenamePanel()
@@ -42,7 +41,7 @@ internal sealed partial class CanvasHavenScene
         actions.Add(save);
         actions.Add(cancel);
         _renameBoardPanel.Add(actions);
-        _releaseChrome.Add(_renameBoardPanel);
+        Root.Add(_renameBoardPanel);
     }
 
     private void CommitBoardRename()

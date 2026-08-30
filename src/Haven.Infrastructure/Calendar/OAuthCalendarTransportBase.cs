@@ -149,7 +149,7 @@ public abstract class OAuthCalendarTransportBase(
             return result;
         }
         catch (OperationCanceledException) { throw; }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
             var result = new CalendarSyncResult(false, CalendarSyncStatus.Offline, 0, 0, 0, 0, $"{Kind} Calendar is offline.");
             await repository.UpsertCalendarAccountAsync(account with { Status = result.Status, StatusMessage = result.Message, UpdatedAt = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);

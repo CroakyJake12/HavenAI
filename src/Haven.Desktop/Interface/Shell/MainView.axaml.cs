@@ -121,7 +121,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
     private TerminalPage? _terminalPage;
-    private MailPage? _mailPage;
+    private Haven.Desktop.Views.Pages.Mail.MailPage? _mailPage;
     private PlayPage? _playPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
@@ -822,7 +822,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenMail()
     {
-        _mailPage ??= new MailPage();
+        _mailPage ??= new Haven.Desktop.Views.Pages.Mail.MailPage();
         AddOrSelectTab("mail", "Mail", _mailPage, false, HavenSurface.Mail);
         ApplyShellVisualState();
     }

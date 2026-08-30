@@ -20,12 +20,12 @@ public sealed class ExtensionPluginEndToEndTests
     public async Task GitHub_style_discovery_and_permission_review_are_atomic()
     {
         using var paths = new TestPaths();
-        var fixtureRoot = await CreateRepositoryAsync(paths, "valid-source", CreateManifest()).ConfigureAwait(false);
+        var fixtureRoot = await CreateRepositoryAsync(paths, "valid-source", CreateManifest());
         var transport = new FixtureSourceTransport(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ValidRepositoryUri] = fixtureRoot
         });
-        var database = await InitializeDatabaseAsync(paths).ConfigureAwait(false);
+        var database = await InitializeDatabaseAsync(paths);
         var extensions = new ExtensionRepository(database);
         var capabilities = new CapabilityRepository(database);
         await using var events = new ExecutionEventHub(new ExecutionEventRepository(database));
@@ -54,19 +54,19 @@ public sealed class ExtensionPluginEndToEndTests
             paths,
             "invalid-source",
             new ExtensionManifestDocument(99, Array.Empty<ExtensionPackageManifest>()),
-            copyFixture: false).ConfigureAwait(false);
+            copyFixture: false);
         var underdeclaredRoot = await CreateRepositoryAsync(
             paths,
             "underdeclared-source",
             CreateManifest(
                 requestedPermissions: ExtensionPermission.ProjectRead,
-                capabilityPermissions: ExtensionPermission.ProjectRead)).ConfigureAwait(false);
+                capabilityPermissions: ExtensionPermission.ProjectRead));
         var transport = new FixtureSourceTransport(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [InvalidRepositoryUri] = invalidRoot,
             [UnderdeclaredRepositoryUri] = underdeclaredRoot
         });
-        var database = await InitializeDatabaseAsync(paths).ConfigureAwait(false);
+        var database = await InitializeDatabaseAsync(paths);
         var extensions = new ExtensionRepository(database);
         var capabilities = new CapabilityRepository(database);
         await using var events = new ExecutionEventHub(new ExecutionEventRepository(database));
@@ -91,8 +91,8 @@ public sealed class ExtensionPluginEndToEndTests
     public async Task Native_plugin_runs_through_registry_authorization_provenance_failure_recovery_and_teardown()
     {
         using var paths = new TestPaths();
-        var fixtureRoot = await CreateRepositoryAsync(paths, "lifecycle-source", CreateManifest()).ConfigureAwait(false);
-        var database = await InitializeDatabaseAsync(paths).ConfigureAwait(false);
+        var fixtureRoot = await CreateRepositoryAsync(paths, "lifecycle-source", CreateManifest());
+        var database = await InitializeDatabaseAsync(paths);
         var extensionRepository = new ExtensionRepository(database);
         var capabilityRepository = new CapabilityRepository(database);
         var executionRepository = new ExecutionEventRepository(database);
@@ -167,7 +167,7 @@ public sealed class ExtensionPluginEndToEndTests
             Assert.False(IsProcessAlive(root.GetProperty("processId").GetInt32()));
         }
         Assert.False(result.Contains(rawSecret, StringComparison.Ordinal));
-        var successEvents = await WaitForEventsAsync(executionRepository, successExecution, 2).ConfigureAwait(false);
+        var successEvents = await WaitForEventsAsync(executionRepository, successExecution, 2);
         Assert.Equal(
             new[] { ExecutionActionStatus.Running, ExecutionActionStatus.Completed },
             successEvents.Select(item => item.Status).ToArray());
@@ -191,7 +191,7 @@ public sealed class ExtensionPluginEndToEndTests
                 CancellationToken.None));
         Assert.True(File.Exists(crashMarker));
         Assert.False(crash.Message.Contains("fixture-process-secret-456", StringComparison.Ordinal));
-        var failedEvents = await WaitForEventsAsync(executionRepository, crashExecution, 2).ConfigureAwait(false);
+        var failedEvents = await WaitForEventsAsync(executionRepository, crashExecution, 2);
         Assert.Equal(
             new[] { ExecutionActionStatus.Running, ExecutionActionStatus.Failed },
             failedEvents.Select(item => item.Status).ToArray());
@@ -258,8 +258,8 @@ public sealed class ExtensionPluginEndToEndTests
     public async Task Tampered_installed_content_is_blocked_before_the_plugin_process_can_run()
     {
         using var paths = new TestPaths();
-        var fixtureRoot = await CreateRepositoryAsync(paths, "tamper-source", CreateManifest()).ConfigureAwait(false);
-        var database = await InitializeDatabaseAsync(paths).ConfigureAwait(false);
+        var fixtureRoot = await CreateRepositoryAsync(paths, "tamper-source", CreateManifest());
+        var database = await InitializeDatabaseAsync(paths);
         var extensionRepository = new ExtensionRepository(database);
         var capabilityRepository = new CapabilityRepository(database);
         var executionRepository = new ExecutionEventRepository(database);
@@ -284,7 +284,7 @@ public sealed class ExtensionPluginEndToEndTests
         var candidate = Assert.Single(await manager.RefreshAsync(source.Id, CancellationToken.None));
         var installed = await manager.InstallAsync(candidate, RequiredPermissions, CancellationToken.None);
         var pluginPath = Path.Combine(installed.InstallPath, "bin", "Haven.PluginFixture.dll");
-        await File.AppendAllTextAsync(pluginPath, "tampered").ConfigureAwait(false);
+        await File.AppendAllTextAsync(pluginPath, "tampered");
 
         var marker = NewMarker();
         var executionId = Guid.NewGuid();
@@ -300,7 +300,7 @@ public sealed class ExtensionPluginEndToEndTests
 
         Assert.Contains("integrity", failure.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(marker));
-        var trace = await WaitForEventsAsync(executionRepository, executionId, 2).ConfigureAwait(false);
+        var trace = await WaitForEventsAsync(executionRepository, executionId, 2);
         Assert.Equal(
             new[] { ExecutionActionStatus.Running, ExecutionActionStatus.Failed },
             trace.Select(item => item.Status).ToArray());

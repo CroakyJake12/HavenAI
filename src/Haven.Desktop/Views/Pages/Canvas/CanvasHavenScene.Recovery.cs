@@ -126,6 +126,7 @@ internal sealed partial class CanvasHavenScene
     public void SetBoards(IReadOnlyList<string> titles, int selectedIndex)
     {
         titles ??= [];
+        _boardTitles = titles.ToArray();
         _activeBoardIndex = titles.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, titles.Count - 1);
         _boardTabs.SetItems(titles.Select((title, index) =>
             new Haven.UI.Components.TabStripItem(index.ToString(CultureInfo.InvariantCulture), title, index == _activeBoardIndex)).ToArray());

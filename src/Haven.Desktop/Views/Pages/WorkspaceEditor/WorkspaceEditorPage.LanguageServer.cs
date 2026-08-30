@@ -351,5 +351,5 @@ public sealed class CodeActionItemViewModel
 public sealed class SemanticTokenItemViewModel(CodeSemanticToken definition)
 {
     public CodeSemanticToken Definition { get; } = definition;
-    public string Display => $"{definition.Range.Start.Line + 1}:{definition.Range.Start.Character + 1} · {definition.TokenType}{(definition.Modifiers.Count == 0 ? string.Empty : " · " + string.Join(", ", definition.Modifiers))}";
+    public string Display => $"{Definition.Range.Start.Line + 1}:{Definition.Range.Start.Character + 1} · {Definition.TokenType}{(Definition.Modifiers.Count == 0 ? string.Empty : " · " + string.Join(", ", Definition.Modifiers))}";
 }
