@@ -43,7 +43,7 @@ public static class HavenAppRoutePolicy
         {
             "go" => new(HavenAppRouteKind.Go, HavenSurface.Go),
             "dashboard" => new(HavenAppRouteKind.Dashboard, HavenSurface.Dashboard),
-            "browse" or "browser" => new(HavenAppRouteKind.Browse, HavenSurface.Browse),
+            "browse" or "browser" or "web" => new(HavenAppRouteKind.Browse, HavenSurface.Browse),
             "plan" => new(HavenAppRouteKind.Plan, HavenSurface.Plan),
             "training" => new(HavenAppRouteKind.Training, HavenSurface.Training),
             "automations" => new(HavenAppRouteKind.Automations, HavenSurface.Automations),
