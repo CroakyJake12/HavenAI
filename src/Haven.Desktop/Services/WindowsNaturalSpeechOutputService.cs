@@ -7,6 +7,7 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
+#if HAVEN_WINDOWS_DESKTOP
 using Haven.Application;
 using Haven.Core;
 using Windows.Media.Core;
@@ -318,3 +319,44 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         }
     }
 }
+#else
+using Haven.Application;
+using Haven.Core;
+
+namespace Haven.Desktop.Services;
+
+/// <summary>
+/// Explicitly unavailable speech adapter for non-Windows desktop targets.
+/// The Windows implementation remains unchanged; this seam keeps Linux startup
+/// fail-closed without pretending that Windows speech APIs are available.
+/// </summary>
+public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IAsyncDisposable
+{
+    public bool IsAvailable => false;
+
+    public string? UnavailableReason => "Modern Windows speech synthesis requires Windows.";
+
+    public IReadOnlyList<CallAudioDevice> Devices { get; } =
+        [new CallAudioDevice("default", "Windows default output", true)];
+
+    public IReadOnlyList<CallVoice> Voices { get; } = [];
+
+    public Task SpeakAsync(
+        string text,
+        string? voiceName,
+        string? outputDeviceId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromException(new PlatformNotSupportedException(UnavailableReason));
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+#endif

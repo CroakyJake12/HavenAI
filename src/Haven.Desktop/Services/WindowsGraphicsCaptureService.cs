@@ -7,6 +7,7 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
+#if HAVEN_WINDOWS_DESKTOP
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
@@ -417,3 +418,57 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
     public async ValueTask DisposeAsync() =>
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
 }
+#else
+using Haven.Application;
+using Haven.Core;
+
+namespace Haven.Desktop.Services;
+
+/// <summary>
+/// Explicitly unavailable screen-share adapter for non-Windows desktop targets.
+/// The Windows Graphics Capture implementation remains unchanged; this seam
+/// keeps the Linux runtime fail-closed without importing Windows APIs.
+/// </summary>
+public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncDisposable
+{
+    public bool IsSupported => false;
+
+    public bool IsSharing => false;
+
+    public string? UnavailableReason => "Screen sharing currently requires Windows.";
+
+    public ScreenShareSource? CurrentSource => null;
+
+    public event EventHandler? SourceClosed
+    {
+        add { }
+        remove { }
+    }
+
+    public event EventHandler<ScreenShareSnapshotEventArgs>? SnapshotAvailable
+    {
+        add { }
+        remove { }
+    }
+
+    public Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromException<ScreenShareSource>(new PlatformNotSupportedException(UnavailableReason));
+    }
+
+    public Task<ScreenShareSnapshot?> GetLatestSnapshotAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<ScreenShareSnapshot?>(null);
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+#endif

@@ -25,7 +25,14 @@ internal static class SqliteProviderBootstrap
                 return true;
             }
 
-            SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_winsqlite3());
+            if (OperatingSystem.IsWindows())
+            {
+                SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_winsqlite3());
+            }
+            else
+            {
+                SQLitePCL.Batteries_V2.Init();
+            }
             return true;
         },
         LazyThreadSafetyMode.ExecutionAndPublication);

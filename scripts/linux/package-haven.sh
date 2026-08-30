@@ -10,7 +10,7 @@ usage() {
 runtime_dir=$(realpath "$1")
 output_dir=$(realpath -m "$2")
 version="${3:-0.1.0}"
-entrypoint="$runtime_dir/Haven.Desktop"
+entrypoint="$runtime_dir/Haven"
 
 [[ -d "$runtime_dir" ]] || { echo "Published runtime directory is missing: $runtime_dir" >&2; exit 1; }
 [[ -x "$entrypoint" ]] || { echo "Linux Haven entrypoint is missing or not executable: $entrypoint" >&2; exit 1; }
@@ -38,7 +38,7 @@ CONTROL
 cat > "$stage/usr/bin/haven" <<'LAUNCHER'
 #!/usr/bin/env bash
 set -u
-runtime=/usr/lib/haven/Haven.Desktop
+runtime=/usr/lib/haven/Haven
 if [[ ! -x "$runtime" ]]; then
     echo "Haven runtime unavailable; the launcher is leaving the session unchanged." >&2
     exit 127
