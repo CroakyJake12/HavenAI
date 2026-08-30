@@ -107,7 +107,6 @@ public sealed class HavenAppRoutePolicyTests
         Assert.Equal(HavenAppRouteKind.ModeWorkspace, route.Kind);
         Assert.Equal(HavenSurface.Data, route.Surface);
     }
-
     [Fact]
     public void DatabaseAliasUsesTheExistingDataWorkspaceRoute()
     {
