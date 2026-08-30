@@ -20,6 +20,7 @@ public sealed partial class MainView
         || key.Equals("canvas", StringComparison.OrdinalIgnoreCase)
         || key.Equals("present", StringComparison.OrdinalIgnoreCase)
         || key.Equals("data", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("data-database", StringComparison.OrdinalIgnoreCase)
         || key.Equals("data-spreadsheet", StringComparison.OrdinalIgnoreCase)
         || key.Equals("boards", StringComparison.OrdinalIgnoreCase);
 
@@ -37,7 +38,7 @@ public sealed partial class MainView
                 services.GetRequiredService<INotesImportExportService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
                 services.GetRequiredService<IPresentExportService>(), services.GetRequiredService<IPresentImportService>()),
-            "data" or "data-spreadsheet" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
+            "data" or "data-database" or "data-spreadsheet" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
                 services.GetRequiredService<IDataWorkbookFormatService>(), services.GetRequiredService<IDataWorkbookQueryService>(),
                 services.GetRequiredService<GenUiLiveActivityTracker>(), services.GetRequiredService<GenUiInstanceStore>()),
             "boards" => new BoardsPage(_bus, services.GetRequiredService<IBoardsWorkspaceService>(),

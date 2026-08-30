@@ -107,4 +107,19 @@ public sealed class HavenAppRoutePolicyTests
         Assert.Equal(HavenAppRouteKind.ModeWorkspace, route.Kind);
         Assert.Equal(HavenSurface.Data, route.Surface);
     }
+
+    [Fact]
+    public void DatabaseAliasUsesTheExistingDataWorkspaceRoute()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var app = new ModeDefinition(
+            Guid.NewGuid(), "data-database", "Data Database", "", "data-database",
+            HavenMode.Studio, "[]", "[]", "[]", "[]", "",
+            ModeSource.Created, ModeInstallState.InstalledByUser, "User", "1.0.0", "[]", now, now);
+
+        var route = HavenAppRoutePolicy.Resolve(app);
+
+        Assert.Equal(HavenAppRouteKind.ModeWorkspace, route.Kind);
+        Assert.Equal(HavenSurface.Data, route.Surface);
+    }
 }
