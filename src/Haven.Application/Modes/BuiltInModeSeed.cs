@@ -164,6 +164,12 @@ public sealed class BuiltInModeSeed
             "maps", "Maps", "Find places, view OpenStreetMap maps, get directions and save places", "map",
             HavenMode.Chat, "[\"Maps\"]", "[]", "[]", "[]", "Act as Haven Maps. Answer place, map and direction questions only from provider-backed OpenStreetMap and OSRM results, keep the required OpenStreetMap attribution visible on the map surface, and never invent places, coordinates or routes when the providers are unavailable.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\",\"travel\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000025"),
+            "motion", "Motion", "Open the Motion workspace shell; editing tools are not enabled in this checkpoint", "play",
+            HavenMode.Chat, "[\"Motion\"]", "[]", "[]", "[]", "Act as Haven Motion checkpoint shell. Help plan motion work, but do not claim timeline editing, rendering, export or project persistence is available until the corresponding Motion workspace capability is installed.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\",\"creative\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

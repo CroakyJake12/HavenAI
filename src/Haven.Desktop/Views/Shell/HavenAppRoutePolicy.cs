@@ -62,6 +62,7 @@ public static class HavenAppRoutePolicy
             "spaces" => new(HavenAppRouteKind.Spaces, HavenSurface.Spaces),
             "boards" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Boards),
             "maps" => new(HavenAppRouteKind.Maps, HavenSurface.Maps),
+            "motion" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Motion),
             "launcher" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher),
             _ => new(HavenAppRouteKind.BaseMode, SurfaceFor(app.BaseMode))
         };
