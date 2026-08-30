@@ -238,7 +238,6 @@ public sealed class LlamaCppRuntime(LlamaCppRuntimeOptions options) : ILlamaCppR
         if (process is null) return false;
         try { return !process.HasExited; }
         catch (InvalidOperationException) { return false; }
-        catch (ObjectDisposedException) { return false; }
     }
 
     private void DisposeExitedProcess()
