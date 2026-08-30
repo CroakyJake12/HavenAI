@@ -25,8 +25,11 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
     private readonly Haven.UI.Components.Web _webElement;
     private readonly Grid _surface = new();
     private readonly Dictionary<Guid, NativeWebView> _webViews = [];
+    private readonly Dictionary<Guid, DateTime> _tabLastActive = [];
     private readonly BrowserPrivateProfileManager _privateProfiles;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly DispatcherTimer _cleanupTimer;
+    private static readonly TimeSpan InactiveTabTimeout = TimeSpan.FromMinutes(5);
     private NativeWebViewHost? _host;
     private NativeWebView? _activeWebView;
     private Guid? _mountedTabId;
@@ -42,6 +45,8 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
         _surface.DetachedFromVisualTree += OnDetached;
         _page.PropertyChanged += OnPagePropertyChanged;
         _page.Tabs.CollectionChanged += OnTabsChanged;
+        _cleanupTimer = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background,
+            (_, _) => CleanupInactiveTabs());
     }
 
     public bool TryCreate(HavenElement element, out Control? control)
@@ -56,8 +61,17 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
         return true;
     }
 
-    private void OnAttached(object? sender, VisualTreeAttachmentEventArgs e) => _ = MountSelectedTabAsync();
-    private void OnDetached(object? sender, VisualTreeAttachmentEventArgs e) => DetachBrowser();
+    private void OnAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _cleanupTimer.Start();
+        _ = MountSelectedTabAsync();
+    }
+
+    private void OnDetached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _cleanupTimer.Stop();
+        DetachBrowser();
+    }
 
     private void OnPagePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -71,9 +85,11 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
         {
             foreach (var item in e.OldItems)
             {
-                if (item is not BrowserTabViewModel tab || !_webViews.Remove(tab.Id, out var webView))
+                if (item is not BrowserTabViewModel tab)
                     continue;
-                _surface.Children.Remove(webView);
+                if (_webViews.Remove(tab.Id, out var webView))
+                    _surface.Children.Remove(webView);
+                _tabLastActive.Remove(tab.Id);
                 if (_mountedTabId == tab.Id)
                 {
                     DetachBrowser();
@@ -129,6 +145,7 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
             _surface.Children.Add(replacement);
             _webViews[tabId] = replacement;
         }
+        _tabLastActive[tabId] = DateTime.UtcNow;
         foreach (var pair in _webViews)
             pair.Value.IsVisible = pair.Key == tabId;
         _activeWebView = replacement;
@@ -158,6 +175,23 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
         _page.Browser.Detach(_host);
         _host.Dispose();
         _host = null;
+    }
+
+    private void CleanupInactiveTabs()
+    {
+        if (_disposed || !_surface.IsAttachedToVisualTree()) return;
+        var cutoff = DateTime.UtcNow - InactiveTabTimeout;
+        var inactive = _tabLastActive
+            .Where(pair => pair.Key != _mountedTabId && pair.Value < cutoff)
+            .Select(pair => pair.Key)
+            .ToArray();
+
+        foreach (var tabId in inactive)
+        {
+            if (_webViews.Remove(tabId, out var webView))
+                _surface.Children.Remove(webView);
+            _tabLastActive.Remove(tabId);
+        }
     }
 
     private async Task CleanupPrivateProfilesAsync()
@@ -209,10 +243,12 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
         _page.Tabs.CollectionChanged -= OnTabsChanged;
         _surface.AttachedToVisualTree -= OnAttached;
         _surface.DetachedFromVisualTree -= OnDetached;
+        _cleanupTimer.Stop();
         DetachBrowser();
         _lifetime.Cancel();
         _surface.Children.Clear();
         _webViews.Clear();
+        _tabLastActive.Clear();
         _lifetime.Dispose();
     }
 }

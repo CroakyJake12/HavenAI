@@ -44,6 +44,8 @@ public sealed partial class ExtensionManifestValidator
         {
             if (!PackageIdPattern().IsMatch(capability.Id)) errors.Add($"{prefix}: capability ID '{capability.Id}' is invalid.");
             if (!IsSafeRelativePath(capability.EntryPoint)) errors.Add($"{prefix}: capability entry point must be a safe relative path.");
+            if (!capability.RequiredPermissions.HasFlag(ExtensionPermission.ProcessExecution))
+                errors.Add($"{prefix}: capability '{capability.Id}' must declare the process execution permission.");
             if ((capability.RequiredPermissions & ~package.RequestedPermissions) != 0)
                 errors.Add($"{prefix}: capability '{capability.Id}' requests permissions not declared by the package.");
         }

@@ -39,12 +39,10 @@ public static partial class CanvasDocumentModel
         page.Title = string.IsNullOrWhiteSpace(title) ? $"Board {section.Pages.Count + 1}" : title.Trim();
         page.Blocks.Clear();
         page.CanvasObjects.Clear();
-
         var block = NotesBlock.CanvasBlock();
         block.Order = 0;
         block.Canvas!.Infinite = true;
         page.Blocks.Add(block);
-
         section.Pages.Add(page);
         document.UpdatedAt = DateTimeOffset.UtcNow;
         return section.Pages.Count - 1;
@@ -120,12 +118,10 @@ public static partial class CanvasDocumentModel
             block.Order = page.Blocks.Count == 0 ? 0 : page.Blocks.Max(candidate => candidate.Order) + 1;
             page.Blocks.Add(block);
         }
-
         var board = block.Canvas ??= new NotesCanvasData { Infinite = true };
         board.Objects ??= [];
         board.Strokes ??= [];
         board.GhostLayers ??= [];
-
         if (page.CanvasObjects.Count > 0)
         {
             var ids = board.Objects.Select(value => value.Id).ToHashSet();

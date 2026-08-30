@@ -84,7 +84,7 @@ public sealed class LanguageServerRequestException(int code, string message, Jso
 /// <summary>
 /// Represents stdio language server client and keeps its related state and behavior together.
 /// </summary>
-internal sealed class StdioLanguageServerClient : ILanguageServerClient
+internal sealed partial class StdioLanguageServerClient : ILanguageServerClient
 {
     /// <summary>
     /// Stores definition locally so this component can preserve the dependency, cache, or state between member calls.
@@ -185,14 +185,34 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
                 workspace = new
                 {
                     workspaceFolders = true,
-                    symbol = new { dynamicRegistration = false }
+                    symbol = new { dynamicRegistration = false },
+                    workspaceEdit = new { documentChanges = true, resourceOperations = Array.Empty<string>() }
                 },
                 textDocument = new
                 {
                     synchronization = new { dynamicRegistration = false, didSave = true },
                     publishDiagnostics = new { relatedInformation = true, versionSupport = true, codeDescriptionSupport = true, dataSupport = true },
                     diagnostic = new { dynamicRegistration = false, relatedDocumentSupport = true },
-                    formatting = new { dynamicRegistration = false }
+                    formatting = new { dynamicRegistration = false },
+                    definition = new { dynamicRegistration = false, linkSupport = true },
+                    references = new { dynamicRegistration = false },
+                    rename = new { dynamicRegistration = false, prepareSupport = false },
+                    completion = new
+                    {
+                        dynamicRegistration = false,
+                        completionItem = new { snippetSupport = false, insertReplaceSupport = true, deprecatedSupport = true, preselectSupport = true }
+                    },
+                    codeAction = new { dynamicRegistration = false, isPreferredSupport = true, dataSupport = true },
+                    semanticTokens = new
+                    {
+                        dynamicRegistration = false,
+                        requests = new { range = false, full = true },
+                        tokenTypes = SemanticTokenClientTypes,
+                        tokenModifiers = SemanticTokenClientModifiers,
+                        formats = new[] { "relative" },
+                        overlappingTokenSupport = false,
+                        multilineTokenSupport = true
+                    }
                 },
                 general = new { positionEncodings = new[] { "utf-16" } }
             },
@@ -201,6 +221,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }, cancellationToken).ConfigureAwait(false);
         if (response.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null))
             throw new InvalidOperationException($"{_definition.DisplayName} returned an invalid initialize response.");
+        CaptureAdvancedCapabilities(response);
         await NotifyAsync("initialized", new { }, cancellationToken).ConfigureAwait(false);
     }
 

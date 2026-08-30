@@ -1976,7 +1976,9 @@ public sealed class ChatPageViewModel : ObservableObject
     {
         if (Messages.Count == 0)
         {
+            var sourceSpaceId = _conversation.SpaceId;
             NewChat();
+            if (sourceSpaceId is not null) _conversation = _conversation with { SpaceId = sourceSpaceId };
             Status = "Started a new branch.";
             return;
         }

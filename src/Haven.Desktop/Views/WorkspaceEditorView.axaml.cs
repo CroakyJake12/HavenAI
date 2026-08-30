@@ -18,7 +18,51 @@ namespace Haven.Desktop.Views;
 /// </summary>
 public sealed partial class WorkspaceEditorView : UserControl
 {
-    public WorkspaceEditorView() => InitializeComponent();
+    private WorkspaceEditorPage? _page;
+
+    public WorkspaceEditorView()
+    {
+        InitializeComponent();
+        DataContextChanged += (_, _) => AttachPage();
+        AttachedToVisualTree += (_, _) => AttachPage();
+        DetachedFromVisualTree += (_, _) => DetachPage();
+    }
+
+    private void AttachPage()
+    {
+        if (ReferenceEquals(_page, DataContext)) { ApplyRequestedNavigation(); return; }
+        DetachPage();
+        _page = DataContext as WorkspaceEditorPage;
+        if (_page is null) return;
+        _page.NavigationRequested += OnNavigationRequested;
+        ApplyRequestedNavigation();
+        _ = _page.RefreshAdvancedLanguageFeaturesAsync();
+    }
+
+    private void DetachPage()
+    {
+        if (_page is not null) _page.NavigationRequested -= OnNavigationRequested;
+        _page = null;
+    }
+
+    private void OnNavigationRequested(object? sender, EventArgs e) => ApplyRequestedNavigation();
+
+    private void ApplyRequestedNavigation()
+    {
+        var range = _page?.TakeRequestedNavigation();
+        if (range is null) return;
+        try
+        {
+            var text = EditorTextBox.Text ?? string.Empty;
+            var start = WorkspaceEditorPage.OffsetAt(text, range.Start);
+            var end = WorkspaceEditorPage.OffsetAt(text, range.End);
+            EditorTextBox.SelectionStart = start;
+            EditorTextBox.SelectionEnd = end;
+            EditorTextBox.CaretIndex = end;
+            EditorTextBox.Focus();
+        }
+        catch (InvalidOperationException) { }
+    }
 
     /// <summary>
     /// Handles the editor selection changed event raised by the UI or runtime.
@@ -26,6 +70,6 @@ public sealed partial class WorkspaceEditorView : UserControl
     private void OnEditorSelectionChanged(object? sender, RoutedEventArgs e)
     {
         if (sender is TextBox box && DataContext is WorkspaceEditorPage page)
-            page.SetSelection(box.SelectedText ?? string.Empty);
+            page.SetEditorSelection(box.SelectedText ?? string.Empty, box.CaretIndex, box.SelectionStart, box.SelectionEnd);
     }
 }

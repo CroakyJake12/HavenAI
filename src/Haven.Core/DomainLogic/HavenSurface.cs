@@ -42,7 +42,7 @@ public enum HavenSurface
     Boards = 23,
     Maps = 24,
     Motion = 25,
-
+    Mail = 26,
     // UI aliases retained for saved layout JSON written before the rename.
     Teach = Study,
     Do = Tasks

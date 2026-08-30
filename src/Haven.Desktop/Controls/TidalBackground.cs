@@ -5,6 +5,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Tokens;
+using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Controls;
 

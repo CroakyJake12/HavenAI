@@ -178,6 +178,53 @@ public sealed class BrowserDataServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ResearchCheckpointPersistsPublicStateAndPrivateSessionCannotOverwriteIt()
+    {
+        var capturedAt = DateTimeOffset.UtcNow;
+        var publicSource = new BrowserResearchSource(
+            Guid.NewGuid(), new Uri("https://example.com/public"), "Public source", "Public evidence", ["Heading"],
+            capturedAt, false, false, false);
+        var privateSource = new BrowserResearchSource(
+            Guid.NewGuid(), new Uri("https://example.com/private"), "Private source", "Private evidence", ["Secret"],
+            capturedAt, true, false, false);
+
+        using (var data = new BrowserDataService(_paths))
+        {
+            await data.SaveResearchAsync(new BrowserResearchSessionState(
+                "public question", "public answer [S1]", [publicSource], capturedAt), CancellationToken.None);
+            await data.SaveResearchAsync(new BrowserResearchSessionState(
+                "private question", "private-derived answer", [publicSource, privateSource], capturedAt), CancellationToken.None);
+        }
+
+        using var reloaded = new BrowserDataService(_paths);
+        Assert.Equal("public question", reloaded.Research.Query);
+        Assert.Equal("public answer [S1]", reloaded.Research.Output);
+        var restored = Assert.Single(reloaded.Research.Sources);
+        Assert.Equal(publicSource.Address, restored.Address);
+        Assert.False(restored.IsPrivate);
+    }
+
+    [Fact]
+    public async Task ClearingResearchRemovesDurableCheckpoint()
+    {
+        var source = new BrowserResearchSource(
+            Guid.NewGuid(), new Uri("https://example.com/source"), "Source", "Evidence", [],
+            DateTimeOffset.UtcNow, false, false, false);
+
+        using (var data = new BrowserDataService(_paths))
+        {
+            await data.SaveResearchAsync(new BrowserResearchSessionState(
+                "question", "answer", [source], DateTimeOffset.UtcNow), CancellationToken.None);
+            await data.ClearResearchAsync(CancellationToken.None);
+        }
+
+        using var reloaded = new BrowserDataService(_paths);
+        Assert.Empty(reloaded.Research.Sources);
+        Assert.Empty(reloaded.Research.Query);
+        Assert.Empty(reloaded.Research.Output);
+    }
+
+    [Fact]
     public async Task ToggleBookmarkPersistsAddThenRemove()
     {
         using (var data = new BrowserDataService(_paths))

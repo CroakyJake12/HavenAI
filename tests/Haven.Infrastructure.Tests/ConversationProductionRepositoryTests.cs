@@ -177,6 +177,69 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
     /// <summary>
     /// Creates database async with the invariants required by its callers.
     /// </summary>
+    [Fact]
+    public async Task SpaceMembershipRoundTripsAndQueriesOnlyMatchingSpace()
+    {
+        var database = await CreateDatabaseAsync();
+        var repository = new ConversationRepository(database);
+        var now = DateTimeOffset.UtcNow;
+        var targetSpace = Guid.NewGuid();
+        var otherSpace = Guid.NewGuid();
+        var target = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Target", null, null, false, false, now, now, SpaceId: targetSpace);
+        var other = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Other", null, null, false, false, now, now.AddMinutes(1), SpaceId: otherSpace);
+        var unscoped = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Unscoped", null, null, false, false, now, now.AddMinutes(2));
+
+        await repository.UpsertConversationAsync(target, CancellationToken.None);
+        await repository.UpsertConversationAsync(other, CancellationToken.None);
+        await repository.UpsertConversationAsync(unscoped, CancellationToken.None);
+
+        var reopenedDatabase = new SqliteDatabase(_paths);
+        await new ConversationProductionDatabase(reopenedDatabase).InitializeAsync(CancellationToken.None);
+        var reopened = new ConversationRepository(reopenedDatabase);
+        var loaded = await reopened.GetAsync(target.Id, CancellationToken.None);
+        var rows = await reopened.GetBySpaceAsync(targetSpace, 50, CancellationToken.None);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(targetSpace, loaded!.SpaceId);
+        Assert.Single(rows);
+        Assert.Equal(target.Id, rows[0].Id);
+    }
+
+    [Fact]
+    public async Task DetachSpacePreservesConversationAndClearsMembership()
+    {
+        var database = await CreateDatabaseAsync();
+        var repository = new ConversationRepository(database);
+        var now = DateTimeOffset.UtcNow;
+        var spaceId = Guid.NewGuid();
+        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Keep me", null, null, false, false, now, now, SpaceId: spaceId);
+        await repository.UpsertConversationAsync(conversation, CancellationToken.None);
+
+        await repository.DetachSpaceAsync(spaceId, CancellationToken.None);
+
+        var loaded = await repository.GetAsync(conversation.Id, CancellationToken.None);
+        var rows = await repository.GetBySpaceAsync(spaceId, 50, CancellationToken.None);
+        Assert.NotNull(loaded);
+        Assert.Equal(conversation.Id, loaded!.Id);
+        Assert.Equal("Keep me", loaded.Title);
+        Assert.Null(loaded.SpaceId);
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public async Task ExistingUnscopedConversationRemainsUnscoped()
+    {
+        var database = await CreateDatabaseAsync();
+        var repository = new ConversationRepository(database);
+        var now = DateTimeOffset.UtcNow;
+        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Normal chat", null, null, false, false, now, now);
+        await repository.UpsertConversationAsync(conversation, CancellationToken.None);
+
+        var loaded = await repository.GetAsync(conversation.Id, CancellationToken.None);
+
+        Assert.NotNull(loaded);
+        Assert.Null(loaded!.SpaceId);
+    }
     private async Task<SqliteDatabase> CreateDatabaseAsync()
     {
         var database = new SqliteDatabase(_paths);

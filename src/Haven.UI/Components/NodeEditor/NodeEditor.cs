@@ -355,6 +355,10 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
         if (input.PrimaryModifier && input.Key == HavenKey.Z) return input.Shift ? Redo() : Undo();
         if (input.PrimaryModifier && input.Key == HavenKey.Y) return Redo();
         if (input.PrimaryModifier && input.Key == HavenKey.D) { DuplicateSelection(); return true; }
+        if (input.PrimaryModifier && input.Key == HavenKey.Left) return SelectRelativeNode(-1);
+        if (input.PrimaryModifier && input.Key == HavenKey.Right) return SelectRelativeNode(1);
+        if (input.PrimaryModifier && input.Key == HavenKey.Home) return SelectBoundaryNode(last: false);
+        if (input.PrimaryModifier && input.Key == HavenKey.End) return SelectBoundaryNode(last: true);
         if (input.Key is HavenKey.Delete or HavenKey.Backspace) { DeleteSelection(); return true; }
         if (input.Key == HavenKey.Escape) { _gesture = NodeEditorGesture.None; _connectingNodeId = null; _connectingPortId = null; ClearSelection(); Invalidate(); return true; }
         if (input.Key == HavenKey.Home) { ResetViewport(); return true; }
@@ -394,6 +398,33 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     }
 
     private bool MoveAndReturn(double dx, double dy) { MoveSelectionBy(dx, dy); return true; }
+
+    private bool SelectRelativeNode(int delta)
+    {
+        if (_document.Nodes.Count == 0) return false;
+        var currentId = _selected.Count == 1 ? _selected.First() : (Guid?)null;
+        var currentIndex = currentId is { } id ? _document.Nodes.ToList().FindIndex(node => node.Id == id) : -1;
+        var nextIndex = currentIndex < 0
+            ? delta < 0 ? _document.Nodes.Count - 1 : 0
+            : (currentIndex + delta + _document.Nodes.Count) % _document.Nodes.Count;
+        return SelectKeyboardNode(nextIndex);
+    }
+
+    private bool SelectBoundaryNode(bool last)
+    {
+        if (_document.Nodes.Count == 0) return false;
+        return SelectKeyboardNode(last ? _document.Nodes.Count - 1 : 0);
+    }
+
+    private bool SelectKeyboardNode(int index)
+    {
+        var node = _document.Nodes[index];
+        _selected.Clear();
+        _selectedEdges.Clear();
+        _selected.Add(node.Id);
+        RaiseSelectionChanged();
+        return true;
+    }
 
     private void DrawGrid(HavenDrawingContext context, double opacity)
     {

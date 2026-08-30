@@ -52,6 +52,12 @@ public sealed class StudioProjectHavenView : UserControl
             if (_page is { } page)
                 await page.StartChatWithPromptCommand.ExecuteAsync($">Debug Review the latest project error and help me fix it safely.\n\nLatest error:\n{page.LatestError}");
         };
+        _scene.SourceControlRefreshRequested += async (_, _) => { await ExecuteAsync(_page?.RefreshSourceControlCommand); RefreshAll(); };
+        _scene.SourceControlStageRequested += async change => { if (_page?.StageSourceControlCommand.CanExecute(change) == true) await _page.StageSourceControlCommand.ExecuteAsync(change); RefreshAll(); };
+        _scene.SourceControlUnstageRequested += async change => { if (_page?.UnstageSourceControlCommand.CanExecute(change) == true) await _page.UnstageSourceControlCommand.ExecuteAsync(change); RefreshAll(); };
+        _scene.SourceControlCheckoutRequested += async branch => { if (_page?.CheckoutSourceControlBranchCommand.CanExecute(branch) == true) await _page.CheckoutSourceControlBranchCommand.ExecuteAsync(branch); RefreshAll(); };
+        _scene.SourceControlCreateStashRequested += async message => { if (_page is { } page) { page.StashMessage = message; await page.CreateSourceControlStashCommand.ExecuteAsync(); } RefreshAll(); };
+        _scene.SourceControlApplyStashRequested += async stash => { if (_page?.ApplySourceControlStashCommand.CanExecute(stash) == true) await _page.ApplySourceControlStashCommand.ExecuteAsync(stash); RefreshAll(); };
         _scene.ContextRequested += (_, _) =>
         {
             if (_page is { } page)
@@ -77,6 +83,7 @@ public sealed class StudioProjectHavenView : UserControl
             ((INotifyPropertyChanged)_page).PropertyChanged += OnPagePropertyChanged;
             _page.Files.CollectionChanged += OnCollectionChanged;
             _page.ProjectConversations.CollectionChanged += OnCollectionChanged;
+            _ = ExecuteAsync(_page.RefreshSourceControlCommand);
         }
         RefreshAll();
     }
@@ -105,6 +112,7 @@ public sealed class StudioProjectHavenView : UserControl
             page.LastCommit, page.LatestError, page.RiskSummary, page.Decisions.Count, page.ActiveAutomations.Count,
             page.RootPath, page.IsInConfigureMode, page.ProjectNameDraft, page.ProjectContextDraft, page.ConfigureStatus,
             page.ProjectConversations.ToArray(), page.Files.ToArray()));
+        _scene.SyncSourceControl(page.SourceControl);
     }
 
     private async Task SubmitAsync(string prompt)

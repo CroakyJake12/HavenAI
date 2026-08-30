@@ -61,6 +61,25 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     /// <summary>
     /// Performs the kind for scope step owned by this component.
     /// </summary>
+    public async Task<IReadOnlyList<Conversation>> GetBySpaceAsync(Guid spaceId, int limit, CancellationToken cancellationToken)
+    {
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM conversations WHERE space_id=$spaceId AND is_temporary=0 AND is_archived=0 ORDER BY updated_at DESC LIMIT $limit;";
+        command.Parameters.AddWithValue("$spaceId", spaceId.ToString());
+        command.Parameters.AddWithValue("$limit", Math.Max(0, limit));
+        return await ReadConversationsAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task DetachSpaceAsync(Guid spaceId, CancellationToken cancellationToken)
+    {
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE conversations SET space_id=NULL WHERE space_id=$spaceId;";
+        command.Parameters.AddWithValue("$spaceId", spaceId.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private static ConversationKind KindForScope(ConversationScopeKind kind) => kind switch
     {
         ConversationScopeKind.GeneralChat or ConversationScopeKind.ChatGroup => ConversationKind.Chat,

@@ -29,7 +29,9 @@ public sealed partial class MainView
             new SpaceEditPlanner(_ollama, () => _preferences.DefaultModel),
             LaunchSpaceAsync,
             DeleteSpaceAsync,
-            OpenSpaceLayoutAsync);
+            OpenSpaceLayoutAsync,
+            _conversations,
+            OpenSpaceConversationAsync);
 
         AddOrSelectTab("spaces", "Spaces", _spacesPage, false, HavenSurface.Spaces);
         await _spacesPage.ActivateAsync(CancellationToken.None);
@@ -45,6 +47,7 @@ public sealed partial class MainView
             return;
         }
 
+        if (_nativeChatSidebar is not null)
         if (_nativeChatSidebar is not null)
         {
             _nativeChatSidebar.SetMode(HavenMode.Chat);
@@ -73,6 +76,20 @@ public sealed partial class MainView
             if (plan.Files.Count > 0)
                 await _newChatPage.AddFilesAsync(plan.Files.Select(file => file.Path));
         }
+
+        if (!string.IsNullOrWhiteSpace(plan.ModelName))
+        {
+            try
+            {
+                var models = await _ollama.GetModelsAsync(CancellationToken.None);
+                var selected = models.FirstOrDefault(model => model.Name.Equals(plan.ModelName, StringComparison.OrdinalIgnoreCase));
+                if (selected is not null) _newChatPage.SelectModel(selected);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException)
+            {
+                // Keep Chat's normal model fallback when the preferred model is unavailable.
+            }
+        }
         ApplyShellVisualState();
     }
 
@@ -91,6 +108,21 @@ public sealed partial class MainView
             await _nativeChatSidebar.ReloadSpaceScopeAsync();
     }
 
+    private async Task OpenSpaceConversationAsync(Conversation conversation)
+    {
+        var page = CreateNewChatPage();
+        await ConfigureAddMenuAsync(page);
+        await page.LoadConversationAsync(conversation);
+        AddOrSelectTab(
+            $"space-chat-{conversation.Id:N}",
+            conversation.Title,
+            page,
+            false,
+            HavenSurface.Spaces,
+            forceNewTab: true);
+        page.FocusComposer();
+        ApplyShellVisualState();
+    }
     private Task OpenSpaceLayoutAsync(SpaceDefinition space)
     {
         var page = new SpaceLayoutEditorPage(SpacesRegistry, space);

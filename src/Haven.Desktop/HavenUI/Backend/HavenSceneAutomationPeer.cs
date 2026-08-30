@@ -39,9 +39,22 @@ internal sealed class HavenSceneAutomationPeer : ControlAutomationPeer
 
     internal IReadOnlyList<AutomationPeer> GetChildrenFor(HavenElement parent, AutomationPeer parentPeer)
     {
+        if (ReferenceEquals(parent, _owner.Root)) PruneDetachedElementPeers(parent);
         var result = new List<AutomationPeer>();
         foreach (var child in parent.Children) AddSemanticChild(child, parentPeer, result);
         return result;
+    }
+
+    internal int CachedElementPeerCount => _elementPeers.Count;
+
+    private void PruneDetachedElementPeers(HavenElement root)
+    {
+        var attached = root.DescendantsAndSelf().ToHashSet(ReferenceEqualityComparer.Instance);
+        foreach (var stale in _elementPeers.Keys.Where(element => !attached.Contains(element)).ToArray())
+        {
+            _elementPeers[stale].Detach();
+            _elementPeers.Remove(stale);
+        }
     }
 
     internal bool IsExposed(HavenElement element)
@@ -154,6 +167,12 @@ internal class HavenElementAutomationPeer : ControlAutomationPeer
     protected bool CanInteract => IsEnabledCore();
 
     internal void AttachTo(AutomationPeer parent) => _parent = parent;
+
+    internal void Detach()
+    {
+        _element.Invalidated -= OnElementInvalidated;
+        _parent = null;
+    }
 
     protected virtual void OnSemanticStateInvalidated() { }
 

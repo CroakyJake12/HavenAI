@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
@@ -14,6 +15,8 @@ namespace Haven.Desktop.Views.Pages.Spaces;
 public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposable
 {
     private readonly SpaceRegistry _registry;
+    private readonly IConversationRepository? _conversations;
+    private readonly Func<Conversation, Task>? _openConversation;
     private readonly Func<SpaceDefinition, Task>? _launchSpace;
     private readonly Func<Guid, Task>? _deleteSpace;
     private readonly Func<SpaceDefinition, Task>? _manageLayout;
@@ -29,8 +32,10 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
     public NativeSpacesPage(
         SpaceRegistry registry,
         Func<SpaceDefinition, Task>? launchSpace = null,
-        Func<SpaceDefinition, Task>? manageLayout = null)
-        : this(registry, null, null, launchSpace, null, manageLayout)
+        Func<SpaceDefinition, Task>? manageLayout = null,
+        IConversationRepository? conversations = null,
+        Func<Conversation, Task>? openConversation = null)
+        : this(registry, null, null, launchSpace, null, manageLayout, conversations, openConversation)
     {
     }
 
@@ -40,9 +45,13 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         SpaceEditPlanner? editPlanner,
         Func<SpaceDefinition, Task>? launchSpace = null,
         Func<Guid, Task>? deleteSpace = null,
-        Func<SpaceDefinition, Task>? manageLayout = null)
+        Func<SpaceDefinition, Task>? manageLayout = null,
+        IConversationRepository? conversations = null,
+        Func<Conversation, Task>? openConversation = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _conversations = conversations;
+        _openConversation = openConversation;
         _generatedSurfaceRenderer = generatedSurfaceRenderer;
         _editPlanner = editPlanner;
         _launchSpace = launchSpace;
@@ -63,6 +72,8 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         _scene.CreateRequested += OnCreateRequested;
         _scene.ArchivedVisibilityChanged += OnArchivedVisibilityChanged;
         _scene.SpaceSelected += OnSpaceSelected;
+        _scene.ConversationSelected += OnConversationSelected;
+        _scene.NewConversationRequested += OnNewConversationRequested;
         _scene.SaveRequested += OnSaveRequested;
         _scene.LaunchRequested += OnLaunchRequested;
         _scene.ForkRequested += OnForkRequested;
@@ -97,6 +108,7 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
             var spaces = await _registry.GetAllAsync(_scene.IncludeArchived, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             await Dispatcher.UIThread.InvokeAsync(() => ApplySpaces(spaces));
+            await RefreshConversationsAsync(token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -112,6 +124,18 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         }
     }
 
+    private async Task RefreshConversationsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_conversations is null || _selectedId is not { } spaceId)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => _scene.SetConversations([]));
+            return;
+        }
+
+        var conversations = await _conversations.GetBySpaceAsync(spaceId, 500, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        await Dispatcher.UIThread.InvokeAsync(() => _scene.SetConversations(conversations));
+    }
     private void ApplySpaces(IReadOnlyList<SpaceDefinition> spaces)
     {
         _spaces = spaces;
@@ -140,7 +164,7 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
 
     private async void OnArchivedVisibilityChanged(object? sender, bool includeArchived) => await RefreshAsync();
 
-    private void OnSpaceSelected(object? sender, Guid id)
+    private async void OnSpaceSelected(object? sender, Guid id)
     {
         _selectedId = id;
         _scene.SetSpaces(_spaces, id);
@@ -148,6 +172,30 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         _scene.SetSpace(current);
         RefreshGeneratedPreview(current);
         _scene.SetStatus(null);
+        try { await RefreshConversationsAsync(); }
+        catch (Exception exception) when (IsExpected(exception)) { _scene.SetStatus($"Chats could not refresh: {exception.Message}"); }
+    }
+
+    private async void OnConversationSelected(object? sender, Guid id)
+    {
+        if (_conversations is null || _openConversation is null) return;
+        await RunMutationAsync(async () =>
+        {
+            var conversation = await _conversations.GetAsync(id, CancellationToken.None);
+            if (conversation is null) { await RefreshConversationsAsync(); return; }
+            await _openConversation(conversation);
+        }, "open Space chat");
+    }
+
+    private async void OnNewConversationRequested(object? sender, Guid id)
+    {
+        var space = _spaces.FirstOrDefault(candidate => candidate.Id == id);
+        if (space is null || _launchSpace is null || space.IsArchived) return;
+        await RunMutationAsync(async () =>
+        {
+            await _launchSpace(space);
+            await RefreshConversationsAsync();
+        }, "start Space chat");
     }
 
     private async void OnSaveRequested(object? sender, SpaceEditorDraft draft)
@@ -218,7 +266,13 @@ public sealed class NativeSpacesPage : UserControl, IActivatablePage, IDisposabl
         await RunMutationAsync(async () =>
         {
             if (_deleteSpace is not null) await _deleteSpace(id);
-            else await _registry.DeleteAsync(id, CancellationToken.None);
+            if (_deleteSpace is not null)
+                await _deleteSpace(id);
+            else
+            {
+                if (_conversations is not null) await _conversations.DetachSpaceAsync(id, CancellationToken.None);
+                await _registry.DeleteAsync(id, CancellationToken.None);
+            }
             if (_selectedId == id) _selectedId = null;
             await RefreshAsync();
         }, "delete Space");

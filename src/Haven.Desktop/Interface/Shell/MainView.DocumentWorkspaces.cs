@@ -35,7 +35,7 @@ public sealed partial class MainView
                 ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>(),
                 readAloud: services.GetRequiredService<NotesReadAloudController>()),
             "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
-                services.GetRequiredService<INotesImportExportService>()),
+                services.GetRequiredService<INotesImportExportService>(), services.GetRequiredService<UserPreferencesService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
                 services.GetRequiredService<IPresentExportService>(), services.GetRequiredService<IPresentImportService>()),
             "data" or "data-database" or "data-spreadsheet" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
