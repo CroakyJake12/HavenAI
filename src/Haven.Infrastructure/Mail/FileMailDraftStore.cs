@@ -49,9 +49,11 @@ public sealed class FileMailDraftStore(IAppPaths paths) : IMailDraftStore
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 32 * 1024, useAsync: true);
-                await JsonSerializer.SerializeAsync(stream, draft, JsonOptions, cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 32 * 1024, useAsync: true))
+                {
+                    await JsonSerializer.SerializeAsync(stream, draft, JsonOptions, cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
                 File.Move(temporary, path, overwrite: true);
             }
             finally { _gate.Release(); }
